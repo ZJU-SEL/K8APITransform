@@ -1,23 +1,16 @@
-k8 server listen to the 8080 port
-refer to 
-http://kubernetes.io/third_party/swagger-ui/
+encapsulating for the basic [k8s api](http://kubernetes.io/third_party/swagger-ui/#!/v1beta1/listNode)
 
-rest api type:
-GET
-POST
-PUT
-DELETE
+using func Sendapi to send the k8s api
 
+examples:
 
-header 如何设定？？
+    using the API  GET /api/v1beta1/minions 
+    getcommands := []string{"minions"}
+    status, message := sendapi.Sendapi("GET", masterip, masterport, "v1beta1", getcommands, "")
+	
+    using the API  POST /api/v1beta1/replicationControllers
+    patchcommands := []string{"replicationControllers", "frontend-controller"}
+    status, message := sendapi.Sendapi("GET", masterip, masterport, "v1beta1", getcommands, filename)
 
-
-version:
-v1beta1 v1beta2 v1beta3
-
-command contents
-
-
-
-return state code json formate
+the type of message is map[string]string
 
