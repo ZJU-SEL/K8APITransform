@@ -24,6 +24,10 @@ func init() {
 			beego.NSInclude(
 				&controllers.UserController{},
 			),
+		), beego.NSNamespace("/namespaces/:namespace/services",
+			beego.NSInclude(
+				&controllers.AppController{},
+			),
 		),
 	)
 	beego.AddNamespace(ns)
