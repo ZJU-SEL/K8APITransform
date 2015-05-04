@@ -1,5 +1,6 @@
 {
   "id": "redis-master-controller-test1",
+
   "kind": "ReplicationController",
   "apiVersion": "v1beta1",
   "desiredState": {
