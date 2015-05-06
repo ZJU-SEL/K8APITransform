@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"io"
 	//	"io/ioutil"
+	"github.com/fsouza/go-dockerclient"
 	"os"
-	"reflect"
+	//"reflect"
 )
 
 func Filecompress(tw *tar.Writer, dir string, fi os.FileInfo) {
@@ -122,7 +123,7 @@ func Dirtotar() {
 	//tar write
 	tw := tar.NewWriter(gw)
 	defer tw.Close()
-	fmt.Println(reflect.TypeOf(tw))
+	//	fmt.Println(reflect.TypeOf(tw))
 	//add the deployments contens
 	Dircompress(tw, "deployments/")
 	//	// add the dockerfile
@@ -134,10 +135,70 @@ func Dirtotar() {
 		panic(err)
 
 	}
-	fmt.Println(reflect.TypeOf(os.FileInfo(fileinfo)))
+	//fmt.Println(reflect.TypeOf(os.FileInfo(fileinfo)))
 	//dockerfile要单独放在根目录下 和其他archivefile并列
 	Filecompress(tw, "", fileinfo)
 
 	fmt.Println("tar.gz packaging OK")
+
+}
+
+//return a tar stream
+func SourceTar(filename string) *os.File {
+	//"tardir/deployments.tar.gz"
+	fw, _ := os.Open(filename)
+	//fmt.Println(reflect.TypeOf(fw))
+	return fw
+
+}
+
+//the image will be covered if the image already exist
+func Wartoimage(imagename string) error {
+	Dirtotar()
+
+	//using go-docker client
+	endpoint := "http://10.211.55.5:2375"
+	client, _ := docker.NewClient(endpoint)
+	//fmt.Println(client)
+	filename := "tardir/deployments.tar.gz"
+	//filename := "tardir/Dockerfile"
+	tarStream := SourceTar(filename)
+	defer tarStream.Close()
+	fmt.Println(tarStream)
+	//  test the basic using
+	//	imgs, _ := client.ListImages(docker.ListImagesOptions{All: false})
+	//	for _, img := range imgs {
+	//		fmt.Println("ID: ", img.ID)
+	//		fmt.Println("RepoTags: ", img.RepoTags)
+	//		fmt.Println("Created: ", img.Created)
+	//		fmt.Println("Size: ", img.Size)
+	//		fmt.Println("VirtualSize: ", img.VirtualSize)
+	//		fmt.Println("ParentId: ", img.ParentID)
+	//	}
+
+	//dockerhub的认证信息
+	auth := docker.AuthConfiguration{
+	//	Username:      "wangzhe",
+	//	Password:      "3.1415",
+	//	Email:         "w_hessen@126.com",
+	//	ServerAddress: "https://10.211.55.5",
+	}
+
+	opts := docker.BuildImageOptions{
+
+		Name:         imagename,
+		InputStream:  tarStream,
+		OutputStream: os.Stdout,
+		Auth:         auth,
+		Dockerfile:   "Dockerfile",
+	}
+
+	//error
+	error := client.BuildImage(opts)
+	if error != nil {
+		panic(error)
+
+	}
+	return error
 
 }
