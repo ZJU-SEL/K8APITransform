@@ -1,4 +1,4 @@
-package fti
+package Ftitool
 
 import (
 	"io"

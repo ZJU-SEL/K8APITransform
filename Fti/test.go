@@ -11,9 +11,15 @@ import (
 
 func main() {
 
-	err := fti.Wartoimage("mytest-tomcat-log")
+	err := Ftitool.Wartoimage("mytest-tomcat-log")
 	if err != nil {
 		panic(err)
 	}
+	//Ftitool.Cleandir("testtemp")
+	//	fmt.Println(str)
 
+	//	image := "testimage-deploy"
+	//	Ftitool.Createdir(image)
+	//	fmt.Println("using the image")
+	//	Ftitool.Cleandir(image)
 }

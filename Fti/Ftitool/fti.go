@@ -1,4 +1,4 @@
-package fti
+package Ftitool
 
 import (
 	"archive/tar"
@@ -105,9 +105,9 @@ func Dircompress(tw *tar.Writer, dir string) {
 
 }
 
-func Dirtotar() {
+func Dirtotar(dir string) {
 	//file write 在tardir目录下创建
-	fw, err := os.Create("tardir/deployments.tar.gz")
+	fw, err := os.Create(dir + "/" + "deployments.tar.gz")
 	//type of fw is *os.File
 	//	fmt.Println(reflect.TypeOf(fw))
 	if err != nil {
@@ -154,13 +154,25 @@ func SourceTar(filename string) *os.File {
 
 //the image will be covered if the image already exist
 func Wartoimage(imagename string) error {
-	Dirtotar()
+	//create temp dir
+	deploydir := imagename + "_deploy"
+	tardir := imagename + "_tar"
 
+	//upload the war file from remote server to the deploy dir and add some scripts
+	//todo: add a rest api which could receive the tar file and put the war file into the _deploy dir
+	//a war->tar->war add scripts（such as dockerfile） -> tar -> image
+	Createdir(deploydir)
+	Createdir(tardir)
+
+	//delete the temp dir at last
+	//defer Cleandir(imagename)
+
+	Dirtotar(tardir)
 	//using go-docker client
 	endpoint := "http://10.211.55.5:2375"
 	client, _ := docker.NewClient(endpoint)
 	//fmt.Println(client)
-	filename := "tardir/deployments.tar.gz"
+	filename := tardir + "/" + "deployments.tar.gz"
 	//filename := "tardir/Dockerfile"
 	tarStream := SourceTar(filename)
 	defer tarStream.Close()
@@ -200,5 +212,84 @@ func Wartoimage(imagename string) error {
 
 	}
 	return error
+}
+
+// 检查文件或目录是否存在
+// 如果由 filename 指定的文件或目录存在则返回 true，否则返回 false
+func Exist(filename string) bool {
+	_, err := os.Stat(filename)
+	return err == nil || os.IsExist(err)
+}
+
+//create the temp dir and return this dir
+//input image name
+func Createdir(imagename string) string {
+
+	//if the file already exist , delete and recreate it
+	exist := Exist(imagename)
+
+	if exist {
+		fmt.Println("the file exist , remove it")
+		Cleandir(imagename)
+	}
+	dirname := imagename
+	err := os.Mkdir(dirname, 0777)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("create succesful")
+	return dirname
+
+}
+
+//递归删除文件夹
+func Cleandir(dirname string) {
+
+	//打开文件夹
+	dirhandle, err := os.Open(dirname)
+	//fmt.Println(dirname)
+	//fmt.Println(reflect.TypeOf(dir))
+	if err != nil {
+		panic(nil)
+	}
+	defer dirhandle.Close()
+
+	//fis, err := ioutil.ReadDir(dir)
+	fis, err := dirhandle.Readdir(0)
+	//fis的类型为 []os.FileInfo
+	//fmt.Println(reflect.TypeOf(fis))
+	if err != nil {
+		panic(err)
+	}
+
+	//遍历文件列表 每一个文件到要写入一个新的*tar.Header
+	//var fi os.FileInfo
+	for _, fi := range fis {
+		if fi.IsDir() {
+			newname := dirname + "/" + fi.Name()
+			//fmt.Println("using dir")
+			//fmt.Println(newname)
+			//这个样直接continue就将所有文件写入到了一起 没有层级结构了
+			//Filecompress(tw, dir, fi)
+			Cleandir(newname)
+
+		} else {
+			//如果是普通文件 直接写入 dir 后面已经有了 /
+			filename := dirname + "/" + fi.Name()
+			fmt.Println(filename)
+			err := os.Remove(filename)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Println("delete " + filename)
+		}
+
+	}
+	//递归结束 删除当前文件夹
+	err = os.Remove(dirname)
+	fmt.Println("delete " + dirname)
+	if err != nil {
+		panic(err)
+	}
 
 }
