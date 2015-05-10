@@ -9,7 +9,6 @@ package routers
 
 import (
 	"K8APITransform/K8APITransform/ApiServer/controllers"
-
 	"github.com/astaxie/beego"
 )
 
@@ -24,11 +23,13 @@ func init() {
 			beego.NSInclude(
 				&controllers.UserController{},
 			),
-		), beego.NSNamespace("/namespaces/:namespace/services",
+		),
+		beego.NSNamespace("/namespaces/:namespace/services",
 			beego.NSInclude(
 				&controllers.AppController{},
 			),
 		),
+		beego.NSGet("/namespaces/:namespace/upload/:warname", controllers.Appupload),
 	)
 	beego.AddNamespace(ns)
 }
