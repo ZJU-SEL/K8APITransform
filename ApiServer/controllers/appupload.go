@@ -62,6 +62,7 @@ func Appuploadandtoimage(ctx *context.Context) {
 	uploaddirname := imagename
 	uploadok := Appupload(uploaddirname, ctx)
 	fmt.Println(uploadok)
+
 	if uploadok {
 		//read the war from the {namespace}_{appname}_deploy , add the dockerfile and tar them
 		Ftitool.Wartoimage(imagename, uploaddirname)

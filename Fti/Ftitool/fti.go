@@ -107,7 +107,7 @@ func Dircompress(tw *tar.Writer, dir string) {
 
 func Dirtotar(sourcedir string, tardir string) {
 	//file write 在tardir目录下创建
-	fw, err := os.Create(tardir + "/" + "deployments.tar.gz")
+	fw, err := os.Create(tardir + "/" + "systempdir.tar.gz")
 	//type of fw is *os.File
 	//	fmt.Println(reflect.TypeOf(fw))
 	if err != nil {
@@ -126,19 +126,22 @@ func Dirtotar(sourcedir string, tardir string) {
 	//	fmt.Println(reflect.TypeOf(tw))
 	//add the deployments contens
 	//Dircompress(tw, "deployments/")
+	fmt.Println(sourcedir)
 	Dircompress(tw, sourcedir+"/")
 	//	// add the dockerfile
 	//	fr, err := os.Open("Dockerfile")
 
 	//write into the dockerfile
 	fileinfo, err := os.Stat("systempdir/Dockerfile")
+	fmt.Println("the file name:", fileinfo.Name())
 	if err != nil {
 		panic(err)
 
 	}
 	//fmt.Println(reflect.TypeOf(os.FileInfo(fileinfo)))
 	//dockerfile要单独放在根目录下 和其他archivefile并列
-	Filecompress(tw, "", fileinfo)
+	Filecompress(tw, "systempdir/", fileinfo)
+	//Filecompress(tw, "systempdir/test_testwar_tar/", fileinfo)
 
 	fmt.Println("tar.gz packaging OK")
 
@@ -175,8 +178,7 @@ func Wartoimage(imagename string, uploaddir string) error {
 	endpoint := "http://10.211.55.5:2375"
 	client, _ := docker.NewClient(endpoint)
 	//fmt.Println(client)
-	filename := tardir + "/" + "deployments.tar.gz"
-	//filename := "tardir/Dockerfile"
+	filename := tardir + "/" + "systempdir.tar.gz"
 	tarStream := SourceTar(filename)
 	defer tarStream.Close()
 	fmt.Println(tarStream)
@@ -193,10 +195,10 @@ func Wartoimage(imagename string, uploaddir string) error {
 
 	//dockerhub的认证信息
 	auth := docker.AuthConfiguration{
-	//	Username:      "wangzhe",
-	//	Password:      "3.1415",
-	//	Email:         "w_hessen@126.com",
-	//	ServerAddress: "https://10.211.55.5",
+	//		Username:      "wangzhe",
+	//		Password:      "3.1415",
+	//		Email:         "w_hessen@126.com",
+	//		ServerAddress: "https://10.211.55.5",
 	}
 
 	opts := docker.BuildImageOptions{

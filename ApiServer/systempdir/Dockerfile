@@ -5,7 +5,7 @@ FROM tomcat:7-jre7
 MAINTAINER wangzhe "w_hessen@126.com"
 
 #copy the war file into the webapps
-ADD /deployments/logtest.war /usr/local/tomcat/webapps/
+ADD /test_testwar_deploy/logtest.war /usr/local/tomcat/webapps/
 
 
 # port 22
