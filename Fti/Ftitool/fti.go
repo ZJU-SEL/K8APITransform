@@ -5,7 +5,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	//	"io/ioutil"
+	//"io/ioutil"
 	"github.com/fsouza/go-dockerclient"
 	"os"
 	//"reflect"
@@ -105,9 +105,9 @@ func Dircompress(tw *tar.Writer, dir string) {
 
 }
 
-func Dirtotar(dir string) {
+func Dirtotar(sourcedir string, tardir string) {
 	//file write 在tardir目录下创建
-	fw, err := os.Create(dir + "/" + "deployments.tar.gz")
+	fw, err := os.Create(tardir + "/" + "deployments.tar.gz")
 	//type of fw is *os.File
 	//	fmt.Println(reflect.TypeOf(fw))
 	if err != nil {
@@ -125,12 +125,13 @@ func Dirtotar(dir string) {
 	defer tw.Close()
 	//	fmt.Println(reflect.TypeOf(tw))
 	//add the deployments contens
-	Dircompress(tw, "deployments/")
+	//Dircompress(tw, "deployments/")
+	Dircompress(tw, sourcedir+"/")
 	//	// add the dockerfile
 	//	fr, err := os.Open("Dockerfile")
 
 	//write into the dockerfile
-	fileinfo, err := os.Stat("Dockerfile")
+	fileinfo, err := os.Stat("systempdir/Dockerfile")
 	if err != nil {
 		panic(err)
 
@@ -153,21 +154,23 @@ func SourceTar(filename string) *os.File {
 }
 
 //the image will be covered if the image already exist
-func Wartoimage(imagename string) error {
+func Wartoimage(imagename string, uploaddir string) error {
 	//create temp dir
-	deploydir := imagename + "_deploy"
-	tardir := imagename + "_tar"
+	//deploydir := imagename + "_deploy"
+	//deploydir := uploaddir
+	sourcedir := "systempdir/" + imagename + "_deploy"
+	tardir := "systempdir/" + imagename + "_tar"
 
 	//upload the war file from remote server to the deploy dir and add some scripts
 	//todo: add a rest api which could receive the tar file and put the war file into the _deploy dir
 	//a war->tar->war add scripts（such as dockerfile） -> tar -> image
-	Createdir(deploydir)
+	//Createdir(deploydir)
 	Createdir(tardir)
 
 	//delete the temp dir at last
 	//defer Cleandir(imagename)
 
-	Dirtotar(tardir)
+	Dirtotar(sourcedir, tardir)
 	//using go-docker client
 	endpoint := "http://10.211.55.5:2375"
 	client, _ := docker.NewClient(endpoint)
