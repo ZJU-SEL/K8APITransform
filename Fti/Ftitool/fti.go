@@ -11,6 +11,10 @@ import (
 	//"reflect"
 )
 
+const (
+	deploydir = "sysdeployments"
+)
+
 func Filecompress(tw *tar.Writer, dir string, fi os.FileInfo) {
 
 	//打开文件 open当中是 目录名称/文件名称 构成的组合
@@ -76,6 +80,7 @@ func Dircompress(tw *tar.Writer, dir string) {
 	//遍历文件列表 每一个文件到要写入一个新的*tar.Header
 	//var fi os.FileInfo
 	for _, fi := range fis {
+		fmt.Println(fi.Name())
 		if fi.IsDir() {
 
 			//			//如果再加上这段的内容 就会多生成一层目录
@@ -107,7 +112,7 @@ func Dircompress(tw *tar.Writer, dir string) {
 
 func Dirtotar(sourcedir string, tardir string) {
 	//file write 在tardir目录下创建
-	fw, err := os.Create(tardir + "/" + "systempdir.tar.gz")
+	fw, err := os.Create(tardir + "/" + deploydir + ".tar.gz")
 	//type of fw is *os.File
 	//	fmt.Println(reflect.TypeOf(fw))
 	if err != nil {
@@ -123,24 +128,24 @@ func Dirtotar(sourcedir string, tardir string) {
 	//tar write
 	tw := tar.NewWriter(gw)
 	defer tw.Close()
-	//	fmt.Println(reflect.TypeOf(tw))
+	//fmt.Println(reflect.TypeOf(tw))
 	//add the deployments contens
 	//Dircompress(tw, "deployments/")
-	fmt.Println(sourcedir)
+	fmt.Println("解压缩目录：", sourcedir)
 	Dircompress(tw, sourcedir+"/")
 	//	// add the dockerfile
 	//	fr, err := os.Open("Dockerfile")
 
 	//write into the dockerfile
-	fileinfo, err := os.Stat("systempdir/Dockerfile")
+	fileinfo, err := os.Stat(deploydir + "/" + "Dockerfile")
 	fmt.Println("the file name:", fileinfo.Name())
 	if err != nil {
 		panic(err)
 
 	}
 	//fmt.Println(reflect.TypeOf(os.FileInfo(fileinfo)))
-	//dockerfile要单独放在根目录下 和其他archivefile并列
-	Filecompress(tw, "systempdir/", fileinfo)
+	//dockerfile要单独放在根目录下 和其他archivefile并列 就是一解压开目录 就有Dockerfile
+	Filecompress(tw, deploydir+"/", fileinfo)
 	//Filecompress(tw, "systempdir/test_testwar_tar/", fileinfo)
 
 	fmt.Println("tar.gz packaging OK")
@@ -161,8 +166,8 @@ func Wartoimage(imagename string, uploaddir string) error {
 	//create temp dir
 	//deploydir := imagename + "_deploy"
 	//deploydir := uploaddir
-	sourcedir := "systempdir/" + imagename + "_deploy"
-	tardir := "systempdir/" + imagename + "_tar"
+	sourcedir := deploydir + "/" + imagename + "_deploy"
+	tardir := deploydir + "/" + imagename + "_tar"
 
 	//upload the war file from remote server to the deploy dir and add some scripts
 	//todo: add a rest api which could receive the tar file and put the war file into the _deploy dir
@@ -178,7 +183,8 @@ func Wartoimage(imagename string, uploaddir string) error {
 	endpoint := "http://10.211.55.5:2375"
 	client, _ := docker.NewClient(endpoint)
 	//fmt.Println(client)
-	filename := tardir + "/" + "systempdir.tar.gz"
+	filename := tardir + "/" + deploydir + ".tar.gz"
+	//filename := "tardir/Dockerfile"
 	tarStream := SourceTar(filename)
 	defer tarStream.Close()
 	fmt.Println(tarStream)
@@ -195,10 +201,10 @@ func Wartoimage(imagename string, uploaddir string) error {
 
 	//dockerhub的认证信息
 	auth := docker.AuthConfiguration{
-	//		Username:      "wangzhe",
-	//		Password:      "3.1415",
-	//		Email:         "w_hessen@126.com",
-	//		ServerAddress: "https://10.211.55.5",
+	//	Username:      "wangzhe",
+	//	Password:      "3.1415",
+	//	Email:         "w_hessen@126.com",
+	//	ServerAddress: "https://10.211.55.5",
 	}
 
 	opts := docker.BuildImageOptions{
@@ -207,7 +213,8 @@ func Wartoimage(imagename string, uploaddir string) error {
 		InputStream:  tarStream,
 		OutputStream: os.Stdout,
 		Auth:         auth,
-		Dockerfile:   "Dockerfile",
+		//attention !!! add the full path of Dockerfile after uncompressing
+		Dockerfile: deploydir + "/Dockerfile",
 	}
 
 	//error

@@ -10,7 +10,11 @@ import (
 	"os"
 )
 
-//http://127.0.0.1:8080/v1/namespaces/test/upload/testwar
+const (
+	deploydir = "sysdeployments"
+)
+
+//"http://10.10.105.219:8080/v1/namespaces/test/upload/testwar"
 func Appupload(dirname string, ctx *context.Context) bool {
 
 	r := ctx.Request
@@ -39,7 +43,7 @@ func Appupload(dirname string, ctx *context.Context) bool {
 	//add suffix automatically
 	//the systempdir already exist
 	//Ftitool.Createdir("systempdir")
-	uploaddir := Ftitool.Createdir("systempdir/" + dirname + "_deploy")
+	uploaddir := Ftitool.Createdir(deploydir + "/" + dirname + "_deploy")
 
 	//默认的路径是从API server 这个目录下开始的
 	f, err := os.OpenFile(uploaddir+"/"+handler.Filename, os.O_WRONLY|os.O_CREATE, 0777)
@@ -65,6 +69,7 @@ func Appuploadandtoimage(ctx *context.Context) {
 
 	if uploadok {
 		//read the war from the {namespace}_{appname}_deploy , add the dockerfile and tar them
+		//Todo: create the dockerfile automatically
 		Ftitool.Wartoimage(imagename, uploaddirname)
 
 	} else {
