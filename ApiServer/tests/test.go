@@ -9,6 +9,7 @@ import (
 )
 
 func main() {
-	Ftitool.Wartoimage(imagename, uploaddirname)
+	imagename :=
+		Ftitool.Wartoimage(imagename, uploaddirname)
 
 }
