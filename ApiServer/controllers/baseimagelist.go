@@ -23,6 +23,7 @@ import (
 
 //search the base_image dir and add the info into the base_image
 func Scandir(dirname string){
+	imageslice=[]string{}
 	fmt.Println("add image list")
 
 	//打开文件夹

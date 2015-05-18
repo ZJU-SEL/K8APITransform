@@ -43,7 +43,7 @@ func (a *AppController) Post() {
 	image := ""
 	if app.Warpath == "" {
 		////
-		image = app.Containerimage
+		image = "reg-5000-gorouter"
 
 	} else {
 		image = "" //war to image
@@ -52,8 +52,8 @@ func (a *AppController) Post() {
 
 	containers := []models.Container{
 		models.Container{
-			Name:  app.Containername,
-			Image: app.Containerimage,
+			Name:  "reg-5000-gorouter-test",
+			Image: "reg-5000-gorouter",
 			Ports: []models.ContainerPort{
 				models.ContainerPort{
 					ContainerPort: app.ContainerPort[0].Port, //
@@ -73,7 +73,7 @@ func (a *AppController) Post() {
 			Labels: map[string]string{"name": app.Name},
 		},
 		Spec: models.ReplicationControllerSpec{
-			Replicas: app.Replicas,
+			Replicas: 1,
 			Selector: map[string]string{"version": app.Name + "-" + "1"},
 			Template: &models.PodTemplateSpec{
 				ObjectMeta: models.ObjectMeta{
