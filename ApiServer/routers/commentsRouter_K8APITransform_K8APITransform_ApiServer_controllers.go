@@ -13,18 +13,18 @@ func init() {
 			[]string{"put"},
 			nil})
 
-	beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppUpgradeController"] = append(beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppUpgradeController"],
-		beego.ControllerComments{
-			"Put",
-			`/`,
-			[]string{"put"},
-			nil})
-
 	beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppViewController"] = append(beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppViewController"],
 		beego.ControllerComments{
 			"Get",
 			`/`,
 			[]string{"get"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppUpgradeController"] = append(beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppUpgradeController"],
+		beego.ControllerComments{
+			"Put",
+			`/`,
+			[]string{"put"},
 			nil})
 
 	beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:ObjectController"] = append(beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:ObjectController"],

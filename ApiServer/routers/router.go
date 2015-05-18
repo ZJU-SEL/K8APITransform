@@ -30,6 +30,7 @@ func init() {
 			),
 		),
 		beego.NSPost("/namespaces/:namespace/upload/:appname", controllers.Appuploadandtoimage),
+		beego.NSGet("/baseimage/search", controllers.Baseimagelist),
 	)
 	beego.AddNamespace(ns)
 }
