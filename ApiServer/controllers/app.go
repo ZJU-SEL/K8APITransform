@@ -151,6 +151,15 @@ func (a *AppController) GetAll() {
 	a.ServeJson()
 }
 
+// @Title get all apps
+// @Description get all apps
+// @Success 200 {string} "get success"
+// @Failure 403 body is empty
+// @router /:service/start [get]
+func (a *AppController) Start() {
+	fmt.Println()
+}
+
 // @Title createApp
 // @Description create app
 // @Param	body		body 	models.AppCreateRequest	 true		"body for user content"
