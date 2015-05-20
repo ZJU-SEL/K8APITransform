@@ -168,6 +168,93 @@ type ObjectFieldSelector struct {
 	// Required: Path of the field to select in the specified API version
 	FieldPath string `json:"fieldPath,omitempty"`
 }
+type ResourceRequirements struct {
+	// Limits describes the maximum amount of compute resources required.
+	Limits map[string]string `json:"limits,omitempty"`
+	// Requests describes the minimum amount of compute resources required.
+	Requests map[string]string `json:"requests,omitempty"`
+}
+type VolumeMount struct {
+	// Required: This must match the Name of a Volume [above].
+	Name string `json:"name"`
+	// Optional: Defaults to false (read-write).
+	ReadOnly bool `json:"readOnly,omitempty"`
+	// Required.
+	MountPath string `json:"mountPath"`
+}
+
+// HTTPGetAction describes an action based on HTTP Get requests.
+type HTTPGetAction struct {
+	// Optional: Path to access on the HTTP server.
+	Path string `json:"path,omitempty"`
+	// Required: Name or number of the port to access on the container.
+	Port int `json:"port,omitempty"`
+	// Optional: Host name to connect to, defaults to the pod IP.
+	Host string `json:"host,omitempty"`
+}
+
+// TCPSocketAction describes an action based on opening a socket
+type TCPSocketAction struct {
+	// Required: Port to connect to.
+	Port int `json:"port,omitempty"`
+}
+
+// ExecAction describes a "run in container" action.
+type ExecAction struct {
+	// Command is the command line to execute inside the container, the working directory for the
+	// command  is root ('/') in the container's filesystem.  The command is simply exec'd, it is
+	// not run inside a shell, so traditional shell instructions ('|', etc) won't work.  To use
+	// a shell, you need to explicitly call out to that shell.
+	Command []string `json:"command,omitempty"`
+}
+
+// Handler defines a specific action that should be taken
+// TODO: pass structured data to these actions, and document that data here.
+type Handler struct {
+	// One and only one of the following should be specified.
+	// Exec specifies the action to take.
+	Exec *ExecAction `json:"exec,omitempty"`
+	// HTTPGet specifies the http request to perform.
+	HTTPGet *HTTPGetAction `json:"httpGet,omitempty"`
+	// TCPSocket specifies an action involving a TCP port.
+	// TODO: implement a realistic TCP lifecycle hook
+	TCPSocket *TCPSocketAction `json:"tcpSocket,omitempty"`
+}
+
+// Probe describes a liveness probe to be examined to the container.
+type Probe struct {
+	// The action taken to determine the health of a container
+	Handler `json:",inline"`
+	// Length of time before health checking is activated.  In seconds.
+	InitialDelaySeconds int64 `json:"initialDelaySeconds,omitempty"`
+	// Length of time before health checking times out.  In seconds.
+	TimeoutSeconds int64 `json:"timeoutSeconds,omitempty"`
+}
+
+// Lifecycle describes actions that the management system should take in response to container lifecycle
+// events.  For the PostStart and PreStop lifecycle handlers, management of the container blocks
+// until the action is complete, unless the container process fails, in which case the handler is aborted.
+type Lifecycle struct {
+	// PostStart is called immediately after a container is created.  If the handler fails, the container
+	// is terminated and restarted.
+	PostStart *Handler `json:"postStart,omitempty"`
+	// PreStop is called immediately before a container is terminated.  The reason for termination is
+	// passed to the handler.  Regardless of the outcome of the handler, the container is eventually terminated.
+	PreStop *Handler `json:"preStop,omitempty"`
+}
+
+type PullPolicy string
+
+// CapabilityType represent POSIX capabilities type
+type CapabilityType string
+
+// Capabilities represent POSIX capabilities that can be added or removed to a running container.
+type Capabilities struct {
+	// Added capabilities
+	Add []CapabilityType `json:"add,omitempty"`
+	// Removed capabilities
+	Drop []CapabilityType `json:"drop,omitempty"`
+}
 
 // Container represents a single container that is expected to be run on the host.
 type Container struct {
@@ -181,9 +268,22 @@ type Container struct {
 	// Optional: The docker image's cmd is used if this is not provided; cannot be updated.
 	Args []string `json:"args,omitempty"`
 	// Optional: Defaults to Docker's default.
-	WorkingDir string          `json:"workingDir,omitempty"`
-	Ports      []ContainerPort `json:"ports,omitempty"`
-	Env        []EnvVar        `json:"env,omitempty"`
+	WorkingDir     string               `json:"workingDir,omitempty"`
+	Ports          []ContainerPort      `json:"ports,omitempty"`
+	Env            []EnvVar             `json:"env,omitempty"`
+	Resources      ResourceRequirements `json:"resources,omitempty"`
+	VolumeMounts   []VolumeMount        `json:"volumeMounts,omitempty"`
+	LivenessProbe  *Probe               `json:"livenessProbe,omitempty"`
+	ReadinessProbe *Probe               `json:"readinessProbe,omitempty"`
+	Lifecycle      *Lifecycle           `json:"lifecycle,omitempty"`
+	// Required.
+	TerminationMessagePath string `json:"terminationMessagePath,omitempty"`
+	// Optional: Default to false.
+	Privileged bool `json:"privileged,omitempty"`
+	// Required: Policy for pulling images for this container
+	ImagePullPolicy PullPolicy `json:"imagePullPolicy"`
+	// Optional: Capabilities for container.
+	Capabilities Capabilities `json:"capabilities,omitempty"`
 }
 
 // ObjectReference contains enough information to let you inspect or modify the referred object.
@@ -206,8 +306,35 @@ type ObjectReference struct {
 	FieldPath string `json:"fieldPath,omitempty"`
 }
 
+// Volume represents a named volume in a pod that may be accessed by any containers in the pod.
+type Volume struct {
+	// Required: This must be a DNS_LABEL.  Each volume in a pod must have
+	// a unique name.
+	Name string `json:"name"`
+	// The VolumeSource represents the location and type of a volume to mount.
+	// This is optional for now. If not specified, the Volume is implied to be an EmptyDir.
+	// This implied behavior is deprecated and will be removed in a future version.
+	VolumeSource `json:",inline,omitempty"`
+}
+
+// HostPathVolumeSource represents a host directory mapped into a pod.
+type HostPathVolumeSource struct {
+	Path string `json:"path"`
+}
+
+// VolumeSource represents the source location of a volume to mount.
+// Only one of its members may be specified.
+type VolumeSource struct {
+	// HostPath represents file or directory on the host machine that is
+	// directly exposed to the container. This is generally used for system
+	// agents or other privileged things that are allowed to see the host
+	// machine. Most containers will NOT need this.
+	// TODO(jonesdl) We need to restrict who can use host directory mounts and who can/can not
+	// mount host directories as read/write.
+	HostPath *HostPathVolumeSource `json:"hostPath"`
+}
 type PodSpec struct {
-	//Volumes []Volume `json:"volumes"`
+	Volumes []Volume `json:"volumes"`
 	// Required: there must be at least one container in a pod.
 	Containers    []Container   `json:"containers"`
 	RestartPolicy RestartPolicy `json:"restartPolicy,omitempty"`

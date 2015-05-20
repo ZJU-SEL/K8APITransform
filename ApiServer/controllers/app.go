@@ -40,6 +40,13 @@ func (a *AppController) Post() {
 		fmt.Fprintln(a.Ctx.ResponseWriter, err)
 		return
 	}
+	err = app.Validate()
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
+		a.Ctx.ResponseWriter.WriteHeader(500)
+		fmt.Fprintln(a.Ctx.ResponseWriter, err)
+		return
+	}
 	image := ""
 	if app.Warpath == "" {
 		////
@@ -48,18 +55,28 @@ func (a *AppController) Post() {
 	} else {
 		image = "" //war to image
 	}
-	fmt.Printf("%s", image)
 
+	fmt.Printf("%s", image)
+	containerports := []models.ContainerPort{}
+	for _, v := range app.ContainerPort {
+		containerports = append(containerports, models.ContainerPort{
+			ContainerPort: v.Port, //
+			Protocol:      models.Protocol(v.Protocol),
+		})
+	}
+	volumemount := []models.VolumeMount{}
+	for _, v := range app.Volumes {
+		volumemount = append(volumemount, models.VolumeMount{
+			Name:      v.Name,
+			MountPath: "/usr/local/tomcat/webapps/",
+		})
+	}
 	containers := []models.Container{
 		models.Container{
-			Name:  "reg-5000-gorouter-test",
-			Image: "reg-5000-gorouter",
-			Ports: []models.ContainerPort{
-				models.ContainerPort{
-					ContainerPort: app.ContainerPort[0].Port, //
-					Protocol:      models.Protocol(app.ContainerPort[0].Protocol),
-				},
-			},
+			Name:         app.Containername,
+			Image:        app.Containerimage,
+			Ports:        containerports,
+			VolumeMounts: volumemount,
 		},
 	}
 
@@ -81,6 +98,7 @@ func (a *AppController) Post() {
 				},
 				Spec: models.PodSpec{
 					Containers: containers,
+					Volumes:    app.Volumes,
 				},
 			},
 		},
@@ -94,47 +112,61 @@ func (a *AppController) Post() {
 		fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
 		return
 	}
-	var service = models.Service{
-		TypeMeta: models.TypeMeta{
-			Kind:       "Service",
-			APIVersion: "v1beta3",
-		},
-		ObjectMeta: models.ObjectMeta{
-			Name:   app.Name,
-			Labels: map[string]string{"name": app.Name},
-		},
-		Spec: models.ServiceSpec{
-			Selector: map[string]string{"name": app.Name},
-			Ports: []models.ServicePort{
-				models.ServicePort{
-					Name:     "default",
-					Port:     app.Ports[0].Port,
-					Protocol: models.Protocol(app.Ports[0].Protocol),
+	/*
+		var service = models.Service{
+			TypeMeta: models.TypeMeta{
+				Kind:       "Service",
+				APIVersion: "v1beta3",
+			},
+			ObjectMeta: models.ObjectMeta{
+				Name:   app.Name,
+				Labels: map[string]string{"name": app.Name},
+			},
+			Spec: models.ServiceSpec{
+				Selector: map[string]string{"name": app.Name},
+				Ports: []models.ServicePort{
+					models.ServicePort{
+						Name:     "default",
+						Port:     app.Ports[0].Port,
+						Protocol: models.Protocol(app.Ports[0].Protocol),
+					},
 				},
 			},
-		},
+		}
+		targetPort := app.Ports[0].TargetPort
+		if targetPort == 0 {
+			targetPort = app.ContainerPort[0].Port
+		}
+		if targetPort != 0 {
+			service.Spec.Ports[0].TargetPort = targetPort
+		} else {
+			service.Spec.Ports[0].TargetPort = app.Ports[0].Port
+		}
+		if len(app.PublicIPs) != 0 {
+			service.Spec.PublicIPs = app.PublicIPs
+		}
+		body, _ = json.Marshal(service)
+		fmt.Println(string(body))
+		status, result = lib.Sendapi("POST", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", namespace, "services"}, body)
+		responsebody, _ = json.Marshal(result)
+		if status != 201 {
+			a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
+			a.Ctx.ResponseWriter.WriteHeader(status)
+			fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
+			return
+		}
+	*/
+	_, exist := models.Appinfo[namespace]
+	if !exist {
+		models.Appinfo[namespace] = models.NamespaceInfo{}
 	}
-	targetPort := app.Ports[0].TargetPort
-	if targetPort == 0 {
-		targetPort = app.ContainerPort[0].Port
-	}
-	if targetPort != 0 {
-		service.Spec.Ports[0].TargetPort = targetPort
-	} else {
-		service.Spec.Ports[0].TargetPort = app.Ports[0].Port
-	}
-	if len(app.PublicIPs) != 0 {
-		service.Spec.PublicIPs = app.PublicIPs
-	}
-	body, _ = json.Marshal(service)
-	fmt.Println(string(body))
-	status, result = lib.Sendapi("POST", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", namespace, "services"}, body)
-	responsebody, _ = json.Marshal(result)
-	if status != 201 {
-		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
-		a.Ctx.ResponseWriter.WriteHeader(status)
-		fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
-		return
+	_, exist = models.Appinfo[namespace][app.Name]
+	if !exist {
+		models.Appinfo[namespace][app.Name] = &models.AppMetaInfo{
+			Name:     app.Name,
+			Replicas: app.Replicas,
+			Status:   1,
+		}
 	}
 	a.Data["json"] = map[string]string{"messages": "create service successfully"}
 	a.ServeJson()
@@ -151,13 +183,131 @@ func (a *AppController) GetAll() {
 	a.ServeJson()
 }
 
-// @Title get all apps
-// @Description get all apps
-// @Success 200 {string} "get success"
+// @Title stop app
+// @Description stop app
+// @Success 200 {string} "stop success"
+// @Failure 403 body is empty
+// @router /:service/stop [get]
+func (a *AppController) Stop() {
+	namespace := a.Ctx.Input.Param(":namespace")
+	service := a.Ctx.Input.Param(":service")
+
+	_, exist := models.Appinfo[namespace]
+	if !exist {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
+		a.Ctx.ResponseWriter.WriteHeader(501)
+		fmt.Fprintln(a.Ctx.ResponseWriter, `{"error":"no namespace`+namespace+`"}`)
+		return
+	}
+	_, exist = models.Appinfo[namespace][service]
+	if !exist {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
+		a.Ctx.ResponseWriter.WriteHeader(501)
+		fmt.Fprintln(a.Ctx.ResponseWriter, `{"error":"no service`+service+`"}`)
+		return
+	}
+	if models.Appinfo[namespace][service].Status == 0 {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
+		a.Ctx.ResponseWriter.WriteHeader(501)
+		fmt.Fprintln(a.Ctx.ResponseWriter, `{"error":"service `+service+` has already been stopped"}`)
+		return
+	}
+	url := "http://10.10.103.86:8080/api/v1beta3/namespaces/" + namespace + "/replicationcontrollers" + "?labelSelector=name%3D" + service
+	//fmt.Println(url)
+	rsp, _ := http.Get(url)
+	var rclist models.ReplicationControllerList
+	//var oldrc models.ReplicationController
+	body, _ := ioutil.ReadAll(rsp.Body)
+	//fmt.Println(string(body))
+	json.Unmarshal(body, &rclist)
+	//fmt.Println(rclist.Items[0].Spec)
+	if len(rclist.Items) == 0 {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
+		a.Ctx.ResponseWriter.WriteHeader(501)
+		fmt.Fprintln(a.Ctx.ResponseWriter, string("service with no rc"))
+		return
+	}
+	oldrc := rclist.Items[0]
+	oldrc.TypeMeta.Kind = "ReplicationController"
+	oldrc.TypeMeta.APIVersion = "v1beta3"
+	oldrc.Spec.Replicas = 0
+	body, _ = json.Marshal(oldrc)
+	fmt.Println(string(body))
+	status, result := lib.Sendapi("PUT", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, body)
+	fmt.Println(status)
+	if status != 200 {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
+		a.Ctx.ResponseWriter.WriteHeader(500)
+		fmt.Fprintln(a.Ctx.ResponseWriter, result)
+		return
+	} else {
+		models.Appinfo[namespace][service].Status = 0
+	}
+	a.Data["json"] = map[string]string{"messages": "start service successfully"}
+	a.ServeJson()
+}
+
+// @Title start app
+// @Description start app
+// @Success 200 {string} "start success"
 // @Failure 403 body is empty
 // @router /:service/start [get]
 func (a *AppController) Start() {
-	fmt.Println()
+	namespace := a.Ctx.Input.Param(":namespace")
+	service := a.Ctx.Input.Param(":service")
+	_, exist := models.Appinfo[namespace]
+	if !exist {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
+		a.Ctx.ResponseWriter.WriteHeader(501)
+		fmt.Fprintln(a.Ctx.ResponseWriter, `{"error":"no namespace`+namespace+`"}`)
+		return
+	}
+	_, exist = models.Appinfo[namespace][service]
+	if !exist {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
+		a.Ctx.ResponseWriter.WriteHeader(501)
+		fmt.Fprintln(a.Ctx.ResponseWriter, `{"error":"no service`+service+`"}`)
+		return
+	}
+	if models.Appinfo[namespace][service].Status == 1 {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
+		a.Ctx.ResponseWriter.WriteHeader(501)
+		fmt.Fprintln(a.Ctx.ResponseWriter, `{"error":"service `+service+` has already been started"}`)
+		return
+	}
+	url := "http://10.10.103.86:8080/api/v1beta3/namespaces/" + namespace + "/replicationcontrollers" + "?labelSelector=name%3D" + service
+	//fmt.Println(url)
+	rsp, _ := http.Get(url)
+	var rclist models.ReplicationControllerList
+	//var oldrc models.ReplicationController
+	body, _ := ioutil.ReadAll(rsp.Body)
+	//fmt.Println(string(body))
+	json.Unmarshal(body, &rclist)
+	//fmt.Println(rclist.Items[0].Spec)
+	if len(rclist.Items) == 0 {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
+		a.Ctx.ResponseWriter.WriteHeader(501)
+		fmt.Fprintln(a.Ctx.ResponseWriter, string("service with no rc"))
+		return
+	}
+	oldrc := rclist.Items[0]
+	oldrc.TypeMeta.Kind = "ReplicationController"
+	oldrc.TypeMeta.APIVersion = "v1beta3"
+	oldrc.Spec.Replicas = models.Appinfo[namespace][service].Replicas
+	body, _ = json.Marshal(oldrc)
+	fmt.Println(string(body))
+	status, result := lib.Sendapi("PUT", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, body)
+
+	if status != 200 {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
+		a.Ctx.ResponseWriter.WriteHeader(500)
+		fmt.Fprintln(a.Ctx.ResponseWriter, result)
+		return
+	} else {
+		models.Appinfo[namespace][service].Status = 1
+	}
+	a.Data["json"] = map[string]string{"messages": "start service successfully"}
+	a.ServeJson()
 }
 
 // @Title createApp
@@ -289,6 +439,18 @@ func (a *AppController) Upgrade() {
 	_, result = lib.Sendapi("DELETE", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, []byte{})
 	re["delete old rc"] = result
 
+	_, exist := models.Appinfo[namespace]
+	if !exist {
+		models.Appinfo[namespace] = models.NamespaceInfo{}
+	}
+	_, exist = models.Appinfo[namespace][service]
+	if !exist {
+		models.Appinfo[namespace][service] = &models.AppMetaInfo{
+			Name:     service,
+			Replicas: newrc.Spec.Replicas,
+			Status:   1,
+		}
+	}
 	a.Data["json"] = re
 	a.ServeJson()
 }

@@ -22,6 +22,13 @@ func init() {
 
 	beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppController"] = append(beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppController"],
 		beego.ControllerComments{
+			"Stop",
+			`/:service/stop`,
+			[]string{"get"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppController"] = append(beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppController"],
+		beego.ControllerComments{
 			"Start",
 			`/:service/start`,
 			[]string{"get"},
@@ -139,20 +146,6 @@ func init() {
 			[]string{"get"},
 			nil})
 
-	beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppViewController"] = append(beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppViewController"],
-		beego.ControllerComments{
-			"Get",
-			`/`,
-			[]string{"get"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppUpgradeController"] = append(beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppUpgradeController"],
-		beego.ControllerComments{
-			"Put",
-			`/`,
-			[]string{"put"},
-			nil})
-
 	beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppRollbackController"] = append(beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppRollbackController"],
 		beego.ControllerComments{
 			"Put",
@@ -171,6 +164,20 @@ func init() {
 		beego.ControllerComments{
 			"Downloadimage",
 			`/:imagename`,
+			[]string{"get"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppUpgradeController"] = append(beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppUpgradeController"],
+		beego.ControllerComments{
+			"Put",
+			`/`,
+			[]string{"put"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppViewController"] = append(beego.GlobalControllerRouter["K8APITransform/K8APITransform/ApiServer/controllers:AppViewController"],
+		beego.ControllerComments{
+			"Get",
+			`/`,
 			[]string{"get"},
 			nil})
 
