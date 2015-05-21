@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	serverip = "10.10.105.196"
+	serverip = "10.10.105.112"
 )
 
 func sendGet(host string, port string, version string, getcommands []string) ([]byte, int) {
