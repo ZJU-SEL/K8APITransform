@@ -8,7 +8,8 @@
 package routers
 
 import (
-	"K8APITransform/K8APITransform/ApiServer/controllers"
+	//"K8APITransform/ApiServer/controllers"
+	"K8APITransform/ApiServer/controllers"
 	"github.com/astaxie/beego"
 )
 

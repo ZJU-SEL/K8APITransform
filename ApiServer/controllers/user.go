@@ -1,10 +1,11 @@
 package controllers
 
 import (
-	"K8APITransform/K8APITransform/ApiServer/models"
+	"apiproject/models"
 	"encoding/json"
-
+	"fmt"
 	"github.com/astaxie/beego"
+	"net/http"
 )
 
 // Operations about Users
@@ -95,15 +96,55 @@ func (u *UserController) Delete() {
 // @Param	username		query 	string	true		"The username for login"
 // @Param	password		query 	string	true		"The password for login"
 // @Success 200 {string} login success
-// @Failure 403 user not exist
-// @router /login [get]
+// @Failure 500 user not exist
+// @router /login [post]
 func (u *UserController) Login() {
-	username := u.GetString("username")
-	password := u.GetString("password")
-	if models.Login(username, password) {
-		u.Data["json"] = "login success"
+
+	var user models.User
+	json.Unmarshal(u.Ctx.Input.RequestBody, &user)
+	fmt.Println(string(u.Ctx.Input.RequestBody))
+	username := user.Username
+	password := user.Password
+	//username := u.GetString("username")
+	//password := u.GetString("password")
+	fmt.Println(username)
+	fmt.Println(password)
+
+	if resuser, err := models.Login(username, password); err {
+		response, _ := json.Marshal(resuser)
+		fmt.Println(string(response))
+		//u.Data["json"] = response
+		http.Error(u.Ctx.ResponseWriter, string(response)+"@login successful", 200)
+		return
+		//u.Data["json"] = "login successful"
 	} else {
-		u.Data["json"] = "user not exist"
+		http.Error(u.Ctx.ResponseWriter, "user not exist", 500)
+		return
+	}
+	//u.ServeJson()
+}
+
+// @Title auth
+// @Description auth user into the system
+// @Param	userid		query 	string	true		"The userid for user"
+// @Success 200 {string} auth success
+// @Failure 500 user not exist
+// @router /auth [post]
+func (u *UserController) Auth() {
+
+	var user models.User
+	json.Unmarshal(u.Ctx.Input.RequestBody, &user)
+	fmt.Println(string(u.Ctx.Input.RequestBody))
+	userid := user.Id
+
+	fmt.Println(userid)
+
+	if models.Auth(userid) {
+
+		u.Data["json"] = "Auth successful"
+	} else {
+		http.Error(u.Ctx.ResponseWriter, "user not exist", 500)
+		return
 	}
 	u.ServeJson()
 }
@@ -116,4 +157,3 @@ func (u *UserController) Logout() {
 	u.Data["json"] = "logout success"
 	u.ServeJson()
 }
-

@@ -3,7 +3,7 @@ package controllers
 
 import (
 	//"bytes"
-	"K8APITransform/K8APITransform/Fti/Ftitool"
+	"K8APITransform/Fti/Ftitool"
 	"fmt"
 	"github.com/astaxie/beego/context"
 	"io"

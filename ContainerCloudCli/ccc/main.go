@@ -1,23 +1,23 @@
 package main
 
 import (
-	//	"ContainerCloudCli/Sendreq/Apitool"
+	"K8APITransform/ContainerCloudCli/lib"
+	"K8APITransform/ContainerCloudCli/models"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"log"
-	//"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
 	"strings"
-	//"time"
-	//"path/filepath"
 )
 
 const (
-	serverip = "10.10.105.112"
+	serverip = "10.10.105.196"
 )
 
 func sendGet(host string, port string, version string, getcommands []string) ([]byte, int) {
@@ -118,32 +118,37 @@ func newCmdList() *cobra.Command {
 		Short: "list the image name which could be used on the server",
 		Long:  "list the image name which could be used on the server ... detail info",
 		Run: func(cmd *cobra.Command, args []string) {
-			//fmt.Println(strings.EqualFold(listtype, "server"))
-			//fmt.Println("listtype:", listtype)
-			if strings.EqualFold(listtype, "server") {
-				//	namespace := "localnamespace"
-				getcommands := []string{"baseimages"}
-				responsebody, status := sendGet(serverip, "8080", "v1", getcommands)
 
-				if status == 200 {
-					fmt.Println("the avaliable image in server")
-					fmt.Println(string(responsebody))
+			if status := Auth(); status == 200 {
+				//fmt.Println(strings.EqualFold(listtype, "server"))
+				//fmt.Println("listtype:", listtype)
+				if strings.EqualFold(listtype, "server") {
+					//	namespace := "localnamespace"
+					getcommands := []string{"baseimages"}
+					responsebody, status := sendGet(serverip, "8080", "v1", getcommands)
+
+					if status == 200 {
+						fmt.Println("the avaliable image in server")
+						fmt.Println(string(responsebody))
+					} else {
+						fmt.Println("error")
+					}
+				} else if strings.EqualFold(listtype, "local") {
+					fmt.Println("serch the base image in local repo")
+
+					//file, _ := exec.LookPath(os.Args[0])
+					//path, _ := filepath.Abs(file)
+					//fmt.Println(path)
+
+					var imageslice []string
+					Scandir("./base_image_repo", imageslice)
+					//fmt.Println(imageslice)
+
 				} else {
-					fmt.Println("error")
+					fmt.Println("error in location")
 				}
-			} else if strings.EqualFold(listtype, "local") {
-				fmt.Println("serch the base image in local repo")
-
-				//file, _ := exec.LookPath(os.Args[0])
-				//path, _ := filepath.Abs(file)
-				//fmt.Println(path)
-
-				var imageslice []string
-				Scandir("./base_image_repo", imageslice)
-				//fmt.Println(imageslice)
-
 			} else {
-				fmt.Println("error in location")
+				fmt.Println("auth err")
 			}
 		},
 	}
@@ -171,42 +176,45 @@ func newCmdPull() *cobra.Command {
 		Short: "pull the base image on the server",
 		Long:  `pull the base image on the server and store it detail info...`,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("test pull")
-			// 获取命令行输入参数 命令行参数被自动存在args中 第一个输入的值 是镜像的名字
-			//	namespace := "localnamespace"
+			if status := Auth(); status == 200 {
+				fmt.Println("test pull")
+				// 获取命令行输入参数 命令行参数被自动存在args中 第一个输入的值 是镜像的名字
+				//	namespace := "localnamespace"
 
-			for _, value := range args {
-				fmt.Println("input args:" + value)
-			}
-			base_dir := "./base_image_repo/"
-			//检查这个镜像是否已经存在在本地
-			_, err := os.Stat(base_dir + args[0])
-			var status int
-			var responsebody []byte
-			//  var responsebody http*re
-			if err == nil {
-				fmt.Println("image file already exist ")
-
-			} else {
-				getcommands := []string{"baseimages", args[0]}
-				responsebody, status = sendGet(serverip, "8080", "v1", getcommands)
-				//download镜像
-
-				if status == 200 {
-					fmt.Println(base_dir + args[0])
-					ioutil.WriteFile(base_dir+args[0], responsebody, 0666)
+				for _, value := range args {
+					fmt.Println("input args:" + value)
+				}
+				base_dir := "./base_image_repo/"
+				//检查这个镜像是否已经存在在本地
+				_, err := os.Stat(base_dir + args[0])
+				var status int
+				var responsebody []byte
+				//  var responsebody http*re
+				if err == nil {
+					fmt.Println("image file already exist ")
 
 				} else {
-					fmt.Println("err")
+					getcommands := []string{"baseimages", args[0]}
+					responsebody, status = sendGet(serverip, "8080", "v1", getcommands)
+					//download镜像
+
+					if status == 200 {
+						fmt.Println(base_dir + args[0])
+						ioutil.WriteFile(base_dir+args[0], responsebody, 0666)
+
+					} else {
+						fmt.Println("err")
+					}
 				}
+
+				//把镜像解压开 在本地（minion节点上 生成image）
+				//systemexec("cd base_image_repo/")
+				//systemexec("pwd")
+				//sudo docker load < base_image_repo/
+				systemexec("sudo docker load  < " + "./base_image_repo/" + args[0])
+			} else {
+				fmt.Println("auth err")
 			}
-
-			//把镜像解压开 在本地（minion节点上 生成image）
-			//systemexec("cd base_image_repo/")
-			//systemexec("pwd")
-			//sudo docker load < base_image_repo/
-			systemexec("sudo docker load  < " + "./base_image_repo/" + args[0])
-
 		},
 	}
 
@@ -220,12 +228,15 @@ func newCmdInfo() *cobra.Command {
 		Short: "show the info running in server",
 		Long:  `show the info running in server details...`,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("test info")
-			//send get api
-			getcommands := []string{"namespaces", "default", "services", args[0], "state"}
-			responsebody, status := sendGet(serverip, "8080", "v1", getcommands)
-			fmt.Println(string(responsebody), status)
-
+			if status := Auth(); status == 200 {
+				fmt.Println("test info")
+				//send get api
+				getcommands := []string{"namespaces", "default", "services", args[0], "state"}
+				responsebody, status := sendGet(serverip, "8080", "v1", getcommands)
+				fmt.Println(string(responsebody), status)
+			} else {
+				fmt.Println("auth err")
+			}
 		},
 	}
 	return Infocmd
@@ -233,15 +244,49 @@ func newCmdInfo() *cobra.Command {
 }
 
 func newCmdLogin() *cobra.Command {
-	return &cobra.Command{
+
+	var (
+		name     string
+		password string
+	)
+	logincmd := &cobra.Command{
 		Use:   "login",
 		Short: "login to the server",
 		Long:  `login to the server detail info...`,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("test login")
+			userinfo := &models.UserInfo{
+				Username: name,
+				Password: password,
+			}
+			body, _ := json.Marshal(userinfo)
+			status, result := lib.Sendapi("POST", serverip, "8080", []string{"v1", "user", "login"}, body)
+			//fmt.Println(status, string(result))
+			if status == 200 {
+				user, _ := user.Current()
+				Dir := user.HomeDir + "/.blackPaaS/"
+				file := Dir + "/config.json"
+				os.MkdirAll(Dir, 0777)
+				os.Create(file)
+				ioutil.WriteFile(file, []byte(strings.Split(string(result), "@")[0]), 0666)
+				fmt.Println(strings.Split(string(result), "@")[1])
+			} else {
+				fmt.Println("login error")
+			}
 		},
 	}
+	logincmd.Flags().StringVarP(&name, "name", "n", "", "name")
+	logincmd.Flags().StringVarP(&password, "password", "p", "", "password")
+	return logincmd
+}
 
+func Auth() int {
+	user, _ := user.Current()
+	Dir := user.HomeDir + "/.blackPaaS/"
+	file := Dir + "/config.json"
+	body, _ := ioutil.ReadFile(file)
+
+	status, _ := lib.Sendapi("POST", serverip, "8080", []string{"v1", "user", "auth"}, body)
+	return status
 }
 
 func newCmdStart() *cobra.Command {
@@ -251,18 +296,22 @@ func newCmdStart() *cobra.Command {
 		Long:  `start the base image with the local volum files`,
 		Run: func(cmd *cobra.Command, args []string) {
 			//the first arg is the name of image
-			fmt.Println("test start")
-			if len(args) == 0 {
-				fmt.Println("please input the image name")
+			if status := Auth(); status == 200 {
+				fmt.Println("test start")
+				if len(args) == 0 {
+					fmt.Println("please input the image name")
 
+				} else {
+					//modify the .startconfig change the containerimage tobe the arg[0] attention to user ` `
+					modify := `sed -i "s/\"containerimage\":.*/\"containerimage\": \"` + args[0] + `\",/g" .startconfig`
+					//modify:=`sed -i "s/\"containerimage\":.*/\"containerimage\": \"test3\"/g" .startconfig`
+					systemexec(modify)
+					getcommands := []string{"namespaces", "default", "services"}
+					responsebody, status := sendPost(serverip, "8080", "v1", getcommands, "./.startconfig")
+					fmt.Println(string(responsebody), status)
+				}
 			} else {
-				//modify the .startconfig change the containerimage tobe the arg[0] attention to user ` `
-				modify := `sed -i "s/\"containerimage\":.*/\"containerimage\": \"` + args[0] + `\",/g" .startconfig`
-				//modify:=`sed -i "s/\"containerimage\":.*/\"containerimage\": \"test3\"/g" .startconfig`
-				systemexec(modify)
-				getcommands := []string{"namespaces", "default", "services"}
-				responsebody, status := sendPost(serverip, "8080", "v1", getcommands, "./.startconfig")
-				fmt.Println(string(responsebody), status)
+				fmt.Println("auth err")
 			}
 		},
 	}

@@ -1,8 +1,8 @@
 package controllers
 
 import (
-	"K8APITransform/K8APITransform/ApiServer/lib"
-	"K8APITransform/K8APITransform/ApiServer/models"
+	"K8APITransform/ApiServer/lib"
+	"K8APITransform/ApiServer/models"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"

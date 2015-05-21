@@ -1,19 +1,17 @@
-package controller
+package controllers
 
 import (
-	"fmt"
+	//	"fmt"
 	"github.com/astaxie/beego/context"
-	"os"
+	//"os"
 )
 
-func Baseimagepull(ctx *context.Context){
-	r := ctx.Request
-	w := ctx.ResponseWriter
-	para := ctx.Input.Params
-	imagename_reqpull := para[":imagename"]
-	
+func Baseimagepull(ctx *context.Context) {
+	//	r := ctx.Request
+	//	w := ctx.ResponseWriter
+	//	para := ctx.Input.Params
+	//	imagename_reqpull := para[":imagename"]
+
 	//send the tar file imagename_pull.tar to the client
-	
-	
 
 }

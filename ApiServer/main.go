@@ -1,8 +1,8 @@
 package main
 
 import (
-	_ "K8APITransform/K8APITransform/ApiServer/docs"
-	_ "K8APITransform/K8APITransform/ApiServer/routers"
+	_ "K8APITransform/ApiServer/docs"
+	_ "K8APITransform/ApiServer/routers"
 
 	"github.com/astaxie/beego"
 )
