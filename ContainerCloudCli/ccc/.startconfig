@@ -1,0 +1,19 @@
+{
+    "name": "teststart",
+    "replicas": 1,
+    "containerimage": "7-jre-customize",
+    "containerport": [
+        {
+            "port": 8080,
+            "protocol": "tcp"
+        }
+    ],
+    "volums": [
+        {
+            "name": "teststart",
+            "hostpath": {
+                "path": "/home/vcap/logtest"
+            }
+        }
+    ]
+}
