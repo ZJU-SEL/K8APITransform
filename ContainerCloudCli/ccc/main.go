@@ -1,8 +1,8 @@
 package main
 
 import (
-	"K8APITransform/ContainerCloudCli/lib"
-	"K8APITransform/ContainerCloudCli/models"
+	"ContainerCloudCli/lib"
+	"ContainerCloudCli/models"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -32,6 +32,31 @@ func sendGet(host string, port string, version string, getcommands []string) ([]
 
 	client := &http.Client{}
 	reqest, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	response, _ := client.Do(reqest)
+
+	//body为 []byte类型
+	body, _ := ioutil.ReadAll(response.Body)
+	status := response.StatusCode
+
+	return body, status
+}
+
+func sendDelete(host string, port string, version string, getcommands []string) ([]byte, int) {
+	url := "http://" + host + ":" + port + "/" + version
+
+	for _, str := range getcommands {
+		url = url + "/" + str
+
+	}
+
+	fmt.Println("send request:" + url)
+
+	client := &http.Client{}
+	reqest, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -243,6 +268,27 @@ func newCmdInfo() *cobra.Command {
 
 }
 
+func newCmdDelete() *cobra.Command {
+	Deletecmd := &cobra.Command{
+		Use:   "delete",
+		Short: "delete the services running in server",
+		Long:  `delete the services running in server details...`,
+		Run: func(cmd *cobra.Command, args []string) {
+			if status := Auth(); status == 200 {
+				fmt.Println("test delete")
+				//send get api
+				getcommands := []string{"namespaces", "default", "services", args[0]}
+				responsebody, status := sendDelete(serverip, "8080", "v1", getcommands)
+				fmt.Println(string(responsebody), status)
+			} else {
+				fmt.Println("auth err")
+			}
+		},
+	}
+	return Deletecmd
+
+}
+
 func newCmdLogin() *cobra.Command {
 
 	var (
@@ -301,11 +347,18 @@ func newCmdStart() *cobra.Command {
 				if len(args) == 0 {
 					fmt.Println("please input the image name")
 
+				} else if len(args) == 1 {
+					fmt.Println("please input the service name")
 				} else {
 					//modify the .startconfig change the containerimage tobe the arg[0] attention to user ` `
-					modify := `sed -i "s/\"containerimage\":.*/\"containerimage\": \"` + args[0] + `\",/g" .startconfig`
+
+					modifyimage := `sed -i "s/\"containerimage\":.*/\"containerimage\": \"` + args[0] + `\",/g" .startconfig`
 					//modify:=`sed -i "s/\"containerimage\":.*/\"containerimage\": \"test3\"/g" .startconfig`
-					systemexec(modify)
+					systemexec(modifyimage)
+
+					modifyservice := `sed -i "s/\"name\":.*/\"name\": \"` + args[1] + `\",/g" .startconfig`
+					systemexec(modifyservice)
+
 					getcommands := []string{"namespaces", "default", "services"}
 					responsebody, status := sendPost(serverip, "8080", "v1", getcommands, "./.startconfig")
 					fmt.Println(string(responsebody), status)
@@ -353,7 +406,7 @@ func main() {
 
 	//	var CCCCmd = &cobra.Command{Use: "ccc"}
 	//CCCCmd.AddCommand(cmdTimes)
-	CCCCmd.AddCommand(newCmdLogin(), newCmdList(), newCmdPull(), newCmdStart(), newCmdInfo())
+	CCCCmd.AddCommand(newCmdLogin(), newCmdList(), newCmdPull(), newCmdStart(), newCmdInfo(), newCmdDelete())
 	//cmdEcho.AddCommand(cmdTimes)
 	CCCCmd.Execute()
 }
