@@ -25,11 +25,48 @@ func init() {
 				&controllers.UserController{},
 			),
 		),
-		beego.NSNamespace("/namespaces/:namespace/services",
+		beego.NSNamespace("/namespaces",
+			beego.NSNamespace("/:namespaces",
+				beego.NSNamespace("/resourcequotas",
+					beego.NSInclude(
+						&controllers.ResourceQuotaController{},
+					),
+				),
+				beego.NSNamespace("/limitranges",
+					beego.NSInclude(
+						&controllers.LimitRangeController{},
+					),
+				),
+				beego.NSNamespace("/services",
+					beego.NSInclude(
+						&controllers.AppController{},
+					),
+				),
+			),
 			beego.NSInclude(
-				&controllers.AppController{},
+				&controllers.NamespaceController{},
 			),
 		),
+		//beego.NSNamespace("/namespaces",
+		//	beego.NSInclude(
+		//		&controllers.NamespaceController{},
+		//	),
+		//),
+		//beego.NSNamespace("/namespaces/:namespaces/limitranges",
+		//	beego.NSInclude(
+		//		&controllers.LimitRangeController{},
+		//	),
+		//),
+		//beego.NSNamespace("/namespaces/:namespaces/resourcequotas",
+		//	beego.NSInclude(
+		//		&controllers.ResourceQuotaController{},
+		//	),
+		//),
+		//beego.NSNamespace("/namespaces/:namespace/services",
+		//	beego.NSInclude(
+		//		&controllers.AppController{},
+		//	),
+		//),
 		beego.NSNamespace("/baseimages",
 			beego.NSInclude(
 				&controllers.BaseimageController{},

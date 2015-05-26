@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"apiproject/models"
+	"K8APITransform/ApiServer/models"
 	"encoding/json"
 	"fmt"
 	"github.com/astaxie/beego"
