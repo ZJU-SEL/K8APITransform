@@ -468,6 +468,14 @@ type Service struct {
 	Status ServiceStatus `json:"status,omitempty"`
 }
 
+// ServiceList holds a list of services.
+type ServiceList struct {
+	TypeMeta `json:",inline"`
+	ListMeta `json:"metadata,omitempty"`
+
+	Items []Service `json:"items"`
+}
+
 // ListMeta describes metadata that synthetic resources must have, including lists and
 // various status objects. A resource may have only one of {ObjectMeta, ListMeta}.
 type ListMeta struct {

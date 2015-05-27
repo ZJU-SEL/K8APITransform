@@ -26,12 +26,13 @@ func NewIntOrStringFromInt(val int) models.IntOrString {
 
 // @Title createApp
 // @Description create app
+// @Param	namespaces	path 	string	true		"The key for staticblock"
 // @Param	body		body 	models.AppCreateRequest	 true		"body for user content"
 // @Success 200 {string} "create success"
 // @Failure 403 body is empty
 // @router / [post]
 func (a *AppController) Post() {
-	namespace := a.Ctx.Input.Param(":namespace")
+	namespace := a.Ctx.Input.Param(":namespaces")
 	var app models.AppCreateRequest
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &app)
 	if err != nil {
@@ -174,22 +175,114 @@ func (a *AppController) Post() {
 
 // @Title get all apps
 // @Description get all apps
+// @Param	namespaces	path 	string	true		"The key for namespaces"
 // @Success 200 {string} "get success"
-// @Failure 403 body is empty
 // @router / [get]
 func (a *AppController) GetAll() {
+	namespaces := a.Ctx.Input.Param(":namespaces")
 
-	a.Data["json"] = map[string]string{"status": "getall success"}
+	status, result := lib.Sendapi("GET", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", namespaces, "services"}, []byte{})
+	responsebodyK8s, _ := json.Marshal(result)
+	if status != 200 {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
+		a.Ctx.ResponseWriter.WriteHeader(status)
+		fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebodyK8s))
+		return
+	}
+
+	var appListK8s models.ServiceList //service -> app
+
+	var appList models.AppGetAllResponse
+	var app models.AppGetAllResponseItem
+
+	appList.Items = make([]models.AppGetAllResponseItem, 0, 60)
+
+	json.Unmarshal([]byte(responsebodyK8s), &appListK8s)
+
+	for index := 0; index < len(appListK8s.Items); index++ {
+		app = models.AppGetAllResponseItem{
+			Name: appListK8s.Items[index].ObjectMeta.Name,
+		}
+		appList.Items = append(appList.Items, app)
+	}
+
+	//appList.Kind = appListK8s.TypeMeta.Kind
+	appList.Kind = "AppGetAllResponse"
+
+	responsebody, _ := json.Marshal(appList)
+
+	a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
+	a.Ctx.ResponseWriter.WriteHeader(status)
+	fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
+
+	//a.Data["json"] = map[string]string{"status": "getall success"}
+	//a.ServeJson()
+}
+
+// @Title Get App
+// @Description get app by name and namespace
+// @Param	namespaces	path 	string	true		"The key for namespaces"
+// @Param	service		path 	string	true		"The key for name"
+// @Success 200 {string} "get success"
+// @router /:service [get]
+func (a *AppController) Get() {
+	namespaces := a.Ctx.Input.Param(":namespaces")
+	name := a.Ctx.Input.Param(":service")
+
+	status, result := lib.Sendapi("GET", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", namespaces, "services", name}, []byte{})
+	responsebodyK8s, _ := json.Marshal(result)
+
+	if status != 200 {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
+		a.Ctx.ResponseWriter.WriteHeader(status)
+		fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebodyK8s))
+		return
+	}
+
+	var appK8s models.Service //service -> app
+	json.Unmarshal([]byte(responsebodyK8s), &appK8s)
+
+	var app = models.AppGetResponse{
+		Kind:              "AppGetResponse",
+		Name:              appK8s.ObjectMeta.Name,
+		Namespace:         appK8s.ObjectMeta.Namespace,
+		CreationTimestamp: appK8s.ObjectMeta.CreationTimestamp,
+		Labels:            appK8s.ObjectMeta.Labels,
+		Spec:              appK8s.Spec,
+		Status:            appK8s.Status,
+	}
+	responsebody, _ := json.Marshal(app)
+
+	a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
+	a.Ctx.ResponseWriter.WriteHeader(status)
+	fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
+
+	//a.Data["json"] = map[string]string{"status": "get success"}
+	//a.ServeJson()
+}
+
+// @Title createApp
+// @Description create app
+// @Param	namespaces	path 	string	true		"The key for namespaces"
+// @Param	service		path 	string	true		"The key for name"
+// @Success 200 {string} "create success"
+// @Failure 403 body is empty
+// @router /:service [delete]
+func (a *AppController) Delete() {
+
+	a.Data["json"] = map[string]string{"status": "delelte success"}
 	a.ServeJson()
 }
 
 // @Title stop app
 // @Description stop app
+// @Param	namespaces	path 	string	true		"The key for namespaces"
+// @Param	service		path 	string	true		"The key for name"
 // @Success 200 {string} "stop success"
 // @Failure 403 body is empty
 // @router /:service/stop [get]
 func (a *AppController) Stop() {
-	namespace := a.Ctx.Input.Param(":namespace")
+	namespace := a.Ctx.Input.Param(":namespaces")
 	service := a.Ctx.Input.Param(":service")
 
 	_, exist := models.Appinfo[namespace]
@@ -249,11 +342,13 @@ func (a *AppController) Stop() {
 
 // @Title start app
 // @Description start app
+// @Param	namespaces	path 	string	true		"The key for namespaces"
+// @Param	service		path 	string	true		"The key for name"
 // @Success 200 {string} "start success"
 // @Failure 403 body is empty
 // @router /:service/start [get]
 func (a *AppController) Start() {
-	namespace := a.Ctx.Input.Param(":namespace")
+	namespace := a.Ctx.Input.Param(":namespaces")
 	service := a.Ctx.Input.Param(":service")
 	_, exist := models.Appinfo[namespace]
 	if !exist {
@@ -310,38 +405,16 @@ func (a *AppController) Start() {
 	a.ServeJson()
 }
 
-// @Title createApp
-// @Description create app
-// @Param	body		body 	models.AppCreateRequest	 true		"body for user content"
-// @Success 200 {string} "create success"
-// @Failure 403 body is empty
-// @router /:service [get]
-func (a *AppController) Get() {
-
-	a.Data["json"] = map[string]string{"status": "get success"}
-	a.ServeJson()
-}
-
-// @Title createApp
-// @Description create app
-// @Param	body		body 	models.AppCreateRequest	 true		"body for user content"
-// @Success 200 {string} "create success"
-// @Failure 403 body is empty
-// @router /:service [delete]
-func (a *AppController) Delete() {
-
-	a.Data["json"] = map[string]string{"status": "delelte success"}
-	a.ServeJson()
-}
-
 // @Title UpgradeApp
 // @Description Upgrade app
+// @Param	namespaces	path 	string	true		"The key for namespaces"
+// @Param	service		path 	string	true		"The key for name"
 // @Param	body		body 	models.AppUpgradeRequest	 true		"body for user content"
 // @Success 200 {string} "upgrade success"
 // @Failure 403 body is empty
 // @router /:service/upgrade [put]
 func (a *AppController) Upgrade() {
-	namespace := a.Ctx.Input.Param(":namespace")
+	namespace := a.Ctx.Input.Param(":namespaces")
 	service := a.Ctx.Input.Param(":service")
 	var upgradeRequest models.AppUpgradeRequest
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &upgradeRequest)
@@ -457,6 +530,8 @@ func (a *AppController) Upgrade() {
 
 // @Title Roll back App
 // @Description roll back app
+// @Param	namespaces	path 	string	true		"The key for namespaces"
+// @Param	service		path 	string	true		"The key for name"
 // @Param	body		body 	models.AppCreateRequest	 true		"body for user content"
 // @Success 200 {string} "create success"
 // @Failure 403 body is empty
