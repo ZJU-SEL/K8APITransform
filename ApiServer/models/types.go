@@ -4,6 +4,8 @@ import (
 	"time"
 )
 
+var KubenetesIp string
+
 type Time struct {
 	time.Time
 }
@@ -487,6 +489,120 @@ type ListMeta struct {
 	// and values may only be valid for a particular resource or set of resources. Only servers
 	// will generate resource versions.
 	ResourceVersion string `json:"resourceVersion,omitempty"`
+}
+type PodPhase string
+type ConditionStatus string
+
+// These are the valid statuses of pods.
+const (
+	// PodPending means the pod has been accepted by the system, but one or more of the containers
+	// has not been started. This includes time before being bound to a node, as well as time spent
+	// pulling images onto the host.
+	PodPending PodPhase = "Pending"
+	// PodRunning means the pod has been bound to a node and all of the containers have been started.
+	// At least one container is still running or is in the process of being restarted.
+	PodRunning PodPhase = "Running"
+	// PodSucceeded means that all containers in the pod have voluntarily terminated
+	// with a container exit code of 0, and the system is not going to restart any of these containers.
+	PodSucceeded PodPhase = "Succeeded"
+	// PodFailed means that all containers in the pod have terminated, and at least one container has
+	// terminated in a failure (exited with a non-zero exit code or was stopped by the system).
+	PodFailed PodPhase = "Failed"
+	// PodUnknown means that for some reason the state of the pod could not be obtained, typically due
+	// to an error in communicating with the host of the pod.
+	PodUnknown PodPhase = "Unknown"
+)
+
+type PodConditionType string
+
+// TODO: add LastTransitionTime, Reason, Message to match NodeCondition api.
+type PodCondition struct {
+	Type   PodConditionType `json:"type"`
+	Status ConditionStatus  `json:"status"`
+}
+
+type ContainerStateWaiting struct {
+	// Reason could be pulling image,
+	Reason string `json:"reason,omitempty"`
+}
+
+type ContainerStateRunning struct {
+	StartedAt Time `json:"startedAt,omitempty"`
+}
+type ContainerStateTerminated struct {
+	ExitCode    int    `json:"exitCode"`
+	Signal      int    `json:"signal,omitempty"`
+	Reason      string `json:"reason,omitempty"`
+	Message     string `json:"message,omitempty"`
+	StartedAt   Time   `json:"startedAt,omitempty"`
+	FinishedAt  Time   `json:"finishedAt,omitempty"`
+	ContainerID string `json:"containerID,omitempty"`
+}
+
+// ContainerState holds a possible state of container.
+// Only one of its members may be specified.
+// If none of them is specified, the default one is ContainerStateWaiting.
+type ContainerState struct {
+	Waiting     *ContainerStateWaiting    `json:"waiting,omitempty"`
+	Running     *ContainerStateRunning    `json:"running,omitempty"`
+	Termination *ContainerStateTerminated `json:"termination,omitempty"`
+}
+type ContainerStatus struct {
+	// Each container in a pod must have a unique name.
+	Name string `name of the container; must be a DNS_LABEL and unique within the pod; cannot be updated"`
+	// TODO(dchen1107): Should we rename PodStatus to a more generic name or have a separate states
+	// defined for container?
+	State                ContainerState `json:"state,omitempty"`
+	LastTerminationState ContainerState `json:"lastState,omitempty"`
+	// Ready specifies whether the conatiner has passed its readiness check.
+	Ready bool `json:"ready"`
+	// Note that this is calculated from dead containers.  But those containers are subject to
+	// garbage collection.  This value will get capped at 5 by GC.
+	RestartCount int `json:"restartCount"`
+	// TODO(dchen1107): Need to decide how to represent this in v1beta3
+	Image       string `json:"image"`
+	ImageID     string `json:"imageID"`
+	ContainerID string `json:"containerID,omitempty"`
+}
+
+// PodStatus represents information about the status of a pod. Status may trail the actual
+// state of a system.
+type PodStatus struct {
+	Phase      PodPhase       `json:"phase,omitempty"`
+	Conditions []PodCondition `json:"Condition,omitempty"`
+	// A human readable message indicating details about why the pod is in this state.
+	Message string `json:"message,omitempty"`
+
+	HostIP string `json:"hostIP,omitempty"`
+	PodIP  string `json:"podIP,omitempty"`
+
+	// The list has one entry per container in the manifest. Each entry is
+	// currently the output of `docker inspect`. This output format is *not*
+	// final and should not be relied upon.
+	// TODO: Make real decisions about what our info should look like. Re-enable fuzz test
+	// when we have done this.
+	ContainerStatuses []ContainerStatus `json:"containerStatuses,omitempty"`
+}
+
+// Pod is a collection of containers, used as either input (create, update) or as output (list, get).
+type Pod struct {
+	TypeMeta   `json:",inline"`
+	ObjectMeta `json:"metadata,omitempty"`
+
+	// Spec defines the behavior of a pod.
+	Spec PodSpec `json:"spec,omitempty"`
+
+	// Status represents the current information about a pod. This data may not be up
+	// to date.
+	Status PodStatus `json:"status,omitempty"`
+}
+
+// PodList is a list of Pods.
+type PodList struct {
+	TypeMeta `json:",inline"`
+	ListMeta `json:"metadata,omitempty"`
+
+	Items []Pod `json:"items"`
 }
 type ReplicationControllerList struct {
 	TypeMeta `json:",inline"`
