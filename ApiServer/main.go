@@ -18,7 +18,10 @@ var kubenets = flag.String(
 func main() {
 	flag.Parse()
 	fmt.Println(*kubenets)
-	models.KubenetesIp = *kubenets
+	//models.KubenetesIp = *kubenets
+	models.KubernetesIp = beego.AppConfig.String("k8sip")
+	fmt.Println("k8sip is ", models.KubernetesIp)
+
 	if beego.RunMode == "dev" {
 		beego.DirectoryIndex = true
 		beego.StaticDir["/swagger"] = "swagger"

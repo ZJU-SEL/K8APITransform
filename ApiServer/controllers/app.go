@@ -107,7 +107,7 @@ func (a *AppController) Post() {
 		},
 	}
 	body, _ := json.Marshal(rc)
-	status, result := lib.Sendapi("POST", models.KubenetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers"}, body)
+	status, result := lib.Sendapi("POST", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers"}, body)
 	responsebody, _ := json.Marshal(result)
 	if status != 201 {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -155,7 +155,7 @@ func (a *AppController) Post() {
 	}
 	body, _ = json.Marshal(service)
 	fmt.Println(string(body))
-	status, result = lib.Sendapi("POST", models.KubenetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "services"}, body)
+	status, result = lib.Sendapi("POST", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "services"}, body)
 	responsebody, _ = json.Marshal(result)
 	if status != 201 {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -188,7 +188,7 @@ func (a *AppController) Post() {
 func (a *AppController) GetAll() {
 	namespaces := a.Ctx.Input.Param(":namespaces")
 
-	status, result := lib.Sendapi("GET", models.KubenetesIp, "8080", "v1beta3", []string{"namespaces", namespaces, "services"}, []byte{})
+	status, result := lib.Sendapi("GET", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespaces, "services"}, []byte{})
 	responsebodyK8s, _ := json.Marshal(result)
 	if status != 200 {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -236,7 +236,7 @@ func (a *AppController) Get() {
 	namespaces := a.Ctx.Input.Param(":namespaces")
 	name := a.Ctx.Input.Param(":service")
 
-	status, result := lib.Sendapi("GET", models.KubenetesIp, "8080", "v1beta3", []string{"namespaces", namespaces, "services", name}, []byte{})
+	status, result := lib.Sendapi("GET", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespaces, "services", name}, []byte{})
 	responsebodyK8s, _ := json.Marshal(result)
 
 	if status != 200 {
@@ -279,9 +279,9 @@ func (a *AppController) Deleteapp() {
 	namespace := a.Ctx.Input.Param(":namespaces")
 	service := a.Ctx.Input.Param(":service")
 	re := map[string]interface{}{}
-	_, result := lib.Sendapi("DELETE", models.KubenetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "services", service}, []byte{})
+	_, result := lib.Sendapi("DELETE", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "services", service}, []byte{})
 	re["delete service"] = result
-	url := "http://" + models.KubenetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/replicationcontrollers" + "?labelSelector=name%3D" + service
+	url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/replicationcontrollers" + "?labelSelector=name%3D" + service
 	//fmt.Println(url)
 	rsp, _ := http.Get(url)
 	var rclist models.ReplicationControllerList
@@ -302,11 +302,11 @@ func (a *AppController) Deleteapp() {
 	oldrc.Spec.Replicas = 0
 	body, _ = json.Marshal(oldrc)
 	fmt.Println(string(body))
-	_, result = lib.Sendapi("PUT", models.KubenetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, body)
+	_, result = lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, body)
 	re["delete pod"] = result
 	//time.Sleep(5 * time.Second)
 
-	_, result = lib.Sendapi("DELETE", models.KubenetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, []byte{})
+	_, result = lib.Sendapi("DELETE", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, []byte{})
 	re["delete rc"] = result
 	delete(models.Appinfo[namespace], service)
 	a.Data["json"] = re
@@ -323,7 +323,7 @@ func (a *AppController) Deleteapp() {
 func (a *AppController) Getstate() {
 	namespace := a.Ctx.Input.Param(":namespaces")
 	service := a.Ctx.Input.Param(":service")
-	url := "http://" + models.KubenetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/pods" + "?labelSelector=name%3D" + service
+	url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/pods" + "?labelSelector=name%3D" + service
 	//fmt.Println(url)
 	rsp, _ := http.Get(url)
 
@@ -370,7 +370,7 @@ func (a *AppController) Stop() {
 		fmt.Fprintln(a.Ctx.ResponseWriter, `{"error":"service `+service+` has already been stopped"}`)
 		return
 	}
-	url := "http://" + models.KubenetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/replicationcontrollers" + "?labelSelector=name%3D" + service
+	url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/replicationcontrollers" + "?labelSelector=name%3D" + service
 	//fmt.Println(url)
 	rsp, _ := http.Get(url)
 	var rclist models.ReplicationControllerList
@@ -391,7 +391,7 @@ func (a *AppController) Stop() {
 	oldrc.Spec.Replicas = 0
 	body, _ = json.Marshal(oldrc)
 	fmt.Println(string(body))
-	status, result := lib.Sendapi("PUT", models.KubenetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, body)
+	status, result := lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, body)
 	fmt.Println(status)
 	if status != 200 {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -435,7 +435,7 @@ func (a *AppController) Start() {
 		fmt.Fprintln(a.Ctx.ResponseWriter, "service "+service+" has already been started")
 		return
 	}
-	url := "http://" + models.KubenetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/replicationcontrollers" + "?labelSelector=name%3D" + service
+	url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/replicationcontrollers" + "?labelSelector=name%3D" + service
 	//fmt.Println(url)
 	rsp, _ := http.Get(url)
 	var rclist models.ReplicationControllerList
@@ -456,7 +456,7 @@ func (a *AppController) Start() {
 	oldrc.Spec.Replicas = models.Appinfo[namespace][service].Replicas
 	body, _ = json.Marshal(oldrc)
 	fmt.Println(string(body))
-	status, result := lib.Sendapi("PUT", models.KubenetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, body)
+	status, result := lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, body)
 
 	if status != 200 {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -499,7 +499,7 @@ func (a *AppController) Upgrade() {
 		image = "" //war to image
 	}
 	//fmt.Println(image)
-	url := "http://" + models.KubenetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/replicationcontrollers" + "?labelSelector=name%3D" + service
+	url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/replicationcontrollers" + "?labelSelector=name%3D" + service
 	//fmt.Println(url)
 	rsp, err := http.Get(url)
 	var rclist models.ReplicationControllerList
@@ -556,7 +556,7 @@ func (a *AppController) Upgrade() {
 	}
 
 	body, _ = json.Marshal(newrc)
-	status, result := lib.Sendapi("POST", models.KubenetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers"}, body)
+	status, result := lib.Sendapi("POST", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers"}, body)
 	responsebody, _ := json.Marshal(result)
 	if status != 201 {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -570,11 +570,11 @@ func (a *AppController) Upgrade() {
 	oldrc.Spec.Replicas = 0
 	body, _ = json.Marshal(oldrc)
 	fmt.Println(string(body))
-	_, result = lib.Sendapi("PUT", models.KubenetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, body)
+	_, result = lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, body)
 	re["close old pod"] = result
 	//time.Sleep(5 * time.Second)
 
-	_, result = lib.Sendapi("DELETE", models.KubenetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, []byte{})
+	_, result = lib.Sendapi("DELETE", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, []byte{})
 	re["delete old rc"] = result
 
 	_, exist := models.Appinfo[namespace]

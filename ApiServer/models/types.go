@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-var KubenetesIp string
+var KubernetesIp string
 
 type Time struct {
 	time.Time
