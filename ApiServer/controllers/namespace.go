@@ -46,7 +46,7 @@ func (a *NamespaceController) Post() {
 	body, _ := json.Marshal(namespaceK8s)
 
 	fmt.Println(string(body))
-	status, result := lib.Sendapi("POST", "10.10.103.86", "8080", "v1beta3", []string{"namespaces"}, body)
+	status, result := lib.Sendapi("POST", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces"}, body)
 	fmt.Println("status is ", status)
 	responsebody, _ := json.Marshal(result)
 
@@ -67,7 +67,7 @@ func (a *NamespaceController) Post() {
 // @router / [get]
 func (a *NamespaceController) GetAll() {
 
-	status, result := lib.Sendapi("GET", "10.10.103.86", "8080", "v1beta3", []string{"namespaces"}, []byte{})
+	status, result := lib.Sendapi("GET", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces"}, []byte{})
 	responsebodyK8s, _ := json.Marshal(result)
 	if status != 200 {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -111,7 +111,7 @@ func (a *NamespaceController) Get() {
 	name := a.Ctx.Input.Param(":name")
 	fmt.Println("name is")
 
-	status, result := lib.Sendapi("GET", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", name}, []byte{})
+	status, result := lib.Sendapi("GET", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", name}, []byte{})
 	responsebodyK8s, _ := json.Marshal(result)
 
 	if status != 200 {
@@ -147,7 +147,7 @@ func (a *NamespaceController) Delete() {
 	name := a.Ctx.Input.Param(":name")
 	fmt.Println("delete namespace" + name)
 
-	status, result := lib.Sendapi("DELETE", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", name}, []byte{})
+	status, result := lib.Sendapi("DELETE", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", name}, []byte{})
 	responsebody, _ := json.Marshal(result)
 
 	a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")

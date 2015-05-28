@@ -63,7 +63,7 @@ func (a *LimitRangeController) Post() {
 	body, _ := json.Marshal(limitrangeK8s)
 
 	fmt.Println(string(body))
-	status, result := lib.Sendapi("POST", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", namespaces, "limitranges"}, body)
+	status, result := lib.Sendapi("POST", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespaces, "limitranges"}, body)
 	fmt.Println("status is ", status)
 	responsebody, _ := json.Marshal(result)
 
@@ -86,7 +86,7 @@ func (a *LimitRangeController) Post() {
 func (a *LimitRangeController) GetAll() {
 	namespaces := a.Ctx.Input.Param(":namespaces")
 
-	status, result := lib.Sendapi("GET", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", namespaces, "limitranges"}, []byte{})
+	status, result := lib.Sendapi("GET", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespaces, "limitranges"}, []byte{})
 	responsebodyK8s, _ := json.Marshal(result)
 	if status != 200 {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -132,7 +132,7 @@ func (a *LimitRangeController) Get() {
 	namespaces := a.Ctx.Input.Param(":namespaces")
 	name := a.Ctx.Input.Param(":name")
 
-	status, result := lib.Sendapi("GET", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", namespaces, "limitranges", name}, []byte{})
+	status, result := lib.Sendapi("GET", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespaces, "limitranges", name}, []byte{})
 	responsebodyK8s, _ := json.Marshal(result)
 
 	if status != 200 {
@@ -172,7 +172,7 @@ func (a *LimitRangeController) Delete() {
 
 	fmt.Println("delete limitrange" + name)
 
-	status, result := lib.Sendapi("DELETE", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", namespaces, "limitranges", name}, []byte{})
+	status, result := lib.Sendapi("DELETE", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespaces, "limitranges", name}, []byte{})
 	responsebody, _ := json.Marshal(result)
 
 	a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")

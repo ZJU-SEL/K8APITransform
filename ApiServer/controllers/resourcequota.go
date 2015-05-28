@@ -53,7 +53,7 @@ func (a *ResourceQuotaController) Post() {
 	body, _ := json.Marshal(resourcequotaK8s)
 
 	fmt.Println(string(body))
-	status, result := lib.Sendapi("POST", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", namespaces, "resourcequotas"}, body)
+	status, result := lib.Sendapi("POST", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespaces, "resourcequotas"}, body)
 	fmt.Println("status is ", status)
 	responsebody, _ := json.Marshal(result)
 
@@ -76,7 +76,7 @@ func (a *ResourceQuotaController) Post() {
 func (a *ResourceQuotaController) GetAll() {
 	namespaces := a.Ctx.Input.Param(":namespaces")
 
-	status, result := lib.Sendapi("GET", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", namespaces, "resourcequotas"}, []byte{})
+	status, result := lib.Sendapi("GET", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespaces, "resourcequotas"}, []byte{})
 	responsebodyK8s, _ := json.Marshal(result)
 	if status != 200 {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -120,7 +120,7 @@ func (a *ResourceQuotaController) Get() {
 	namespaces := a.Ctx.Input.Param(":namespaces")
 	name := a.Ctx.Input.Param(":name")
 
-	status, result := lib.Sendapi("GET", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", namespaces, "resourcequotas", name}, []byte{})
+	status, result := lib.Sendapi("GET", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespaces, "resourcequotas", name}, []byte{})
 	responsebodyK8s, _ := json.Marshal(result)
 
 	if status != 200 {
@@ -161,7 +161,7 @@ func (a *ResourceQuotaController) Delete() {
 
 	fmt.Println("delete resourcequota" + name)
 
-	status, result := lib.Sendapi("DELETE", "10.10.103.86", "8080", "v1beta3", []string{"namespaces", namespaces, "resourcequotas", name}, []byte{})
+	status, result := lib.Sendapi("DELETE", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespaces, "resourcequotas", name}, []byte{})
 	responsebody, _ := json.Marshal(result)
 
 	a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
