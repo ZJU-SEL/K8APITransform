@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"K8APITransform/ApiServer/lib"
 	"K8APITransform/ApiServer/models"
 	"encoding/json"
 	"fmt"
@@ -23,6 +24,8 @@ func (u *UserController) Post() {
 	var user models.User
 	json.Unmarshal(u.Ctx.Input.RequestBody, &user)
 	uid := models.AddUser(user)
+	body := `{"name":"` + user.Username + `"}`
+	lib.Sendapi("POST", "127.0.0.1", "8080", "v1", []string{"namespaces"}, []byte(body))
 	u.Data["json"] = map[string]string{"uid": uid}
 	u.ServeJson()
 }
