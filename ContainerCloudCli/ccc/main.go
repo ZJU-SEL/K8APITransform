@@ -1,6 +1,8 @@
 package main
 
 import (
+	"C"
+	"ContainerCloudCli/Fti"
 	"ContainerCloudCli/lib"
 	"ContainerCloudCli/models"
 	"bytes"
@@ -268,6 +270,35 @@ func newCmdInfo() *cobra.Command {
 
 }
 
+func newCmdbuild() *cobra.Command {
+	Buildcmd := &cobra.Command{
+		Use:   "build",
+		Short: "build the image from the war file",
+		Long:  `build the image from the war file details...`,
+		Run: func(cmd *cobra.Command, args []string) {
+			//if status := Auth(); status == 200 {
+			fmt.Println("test build")
+			//send get api
+			baseimage := args[0]
+			//				sourcedir := args[1]
+			//add the src to the base image and build the new image
+			err := Fti.Wartoimage(baseimage, "")
+			if err != nil {
+				panic(err)
+			}
+
+			//todo: add the new docker image to the private registry
+			//todo: create the dockerfile automatically
+
+			//} else {
+			//fmt.Println("auth err")
+			//}
+		},
+	}
+	return Buildcmd
+
+}
+
 func newCmdDelete() *cobra.Command {
 	Deletecmd := &cobra.Command{
 		Use:   "delete",
@@ -406,7 +437,7 @@ func main() {
 
 	//	var CCCCmd = &cobra.Command{Use: "ccc"}
 	//CCCCmd.AddCommand(cmdTimes)
-	CCCCmd.AddCommand(newCmdLogin(), newCmdList(), newCmdPull(), newCmdStart(), newCmdInfo(), newCmdDelete())
+	CCCCmd.AddCommand(newCmdLogin(), newCmdList(), newCmdPull(), newCmdStart(), newCmdInfo(), newCmdDelete(), newCmdbuild())
 	//cmdEcho.AddCommand(cmdTimes)
 	CCCCmd.Execute()
 }
