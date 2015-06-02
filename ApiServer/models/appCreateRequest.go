@@ -13,6 +13,7 @@ type AppCreateRequest struct {
 	Name           string
 	Ports          []Port
 	Replicas       int
+	Runlocal       bool
 	Containername  string
 	Containerimage string
 	Warpath        string

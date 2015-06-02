@@ -81,7 +81,12 @@ func (a *AppController) Post() {
 			VolumeMounts: volumemount,
 		},
 	}
-
+	var nodeSelector = map[string]string{}
+	if app.Runlocal {
+		nodeSelector["namespace"] = namespace
+	} else {
+		nodeSelector["ip"] = strings.Split(a.Ctx.Request.RemoteAddr, ":")[0]
+	}
 	var rc = &models.ReplicationController{
 		TypeMeta: models.TypeMeta{
 			Kind:       "ReplicationController",
@@ -101,7 +106,7 @@ func (a *AppController) Post() {
 				Spec: models.PodSpec{
 					Containers:   containers,
 					Volumes:      app.Volumes,
-					NodeSelector: map[string]string{"ip": strings.Split(a.Ctx.Request.RemoteAddr, ":")[0]},
+					NodeSelector: nodeSelector,
 				},
 			},
 		},
