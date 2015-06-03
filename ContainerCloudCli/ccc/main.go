@@ -1,29 +1,35 @@
 package main
 
 import (
-	"C"
-	"ContainerCloudCli/Fti"
-	"ContainerCloudCli/lib"
-	"ContainerCloudCli/models"
+	"K8APITransform/ContainerCloudCli/Fti"
+	"K8APITransform/ContainerCloudCli/lib"
+	"K8APITransform/ContainerCloudCli/models"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	//	"github.com/fsouza/go-dockerclient"
 	"github.com/spf13/cobra"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/user"
 	"strings"
 )
 
 const (
-	serverip = "10.10.105.112"
+	serverip     = "10.10.105.253"
+	dockerdeamon = "http://0.0.0.0:4243"
+	//the docker demon listen to 2376
+	//attention to add insecure registry
 )
 
 func sendGet(host string, port string, version string, getcommands []string) ([]byte, int) {
-	url := "http://" + host + ":" + port + "/" + version
+	var url string
+	if version == "" {
+		url = "http://" + host + ":" + port
+	} else {
+		url = "http://" + host + ":" + port + "/" + version
+	}
 
 	for _, str := range getcommands {
 		url = url + "/" + str
@@ -73,7 +79,13 @@ func sendDelete(host string, port string, version string, getcommands []string) 
 }
 
 func sendPost(host string, port string, version string, getcommands []string, filename string) ([]byte, int) {
-	url := "http://" + host + ":" + port + "/" + version
+	var url string
+	if version == "" {
+		url = "http://" + host + ":" + port
+	} else {
+		url = "http://" + host + ":" + port + "/" + version
+	}
+
 	for _, str := range getcommands {
 		url = url + "/" + str
 	}
@@ -127,7 +139,8 @@ func Scandir(dirname string, imageslice []string) {
 		//err := os.Remove(filename)
 		//temp_image:=&image{imagename:fi.Name(),}
 		if strings.Contains(fi.Name(), ".tar") {
-			imageslice = append(imageslice, string(fi.Name()))
+			finame := strings.Split(fi.Name(), ".")[0]
+			imageslice = append(imageslice, finame)
 			if err != nil {
 				panic(err)
 			}
@@ -153,10 +166,19 @@ func newCmdList() *cobra.Command {
 					//	namespace := "localnamespace"
 					getcommands := []string{"baseimages"}
 					responsebody, status := sendGet(serverip, "8080", "v1", getcommands)
+					//response is json type
+					var imagelist []string
+					err := json.Unmarshal(responsebody, &imagelist)
+					if err != nil {
+						panic(err)
+					}
 
 					if status == 200 {
 						fmt.Println("the avaliable image in server")
-						fmt.Println(string(responsebody))
+						for _, v := range imagelist {
+							v = strings.Split(v, ".")[0]
+							fmt.Println(v)
+						}
 					} else {
 						fmt.Println("error")
 					}
@@ -168,6 +190,10 @@ func newCmdList() *cobra.Command {
 					//fmt.Println(path)
 
 					var imageslice []string
+					_, err := os.Stat("./base_image_repo")
+					if err != nil {
+						Fti.Createdir("./base_image_repo")
+					}
 					Scandir("./base_image_repo", imageslice)
 					//fmt.Println(imageslice)
 
@@ -182,18 +208,6 @@ func newCmdList() *cobra.Command {
 
 	Listcmd.Flags().StringVarP(&listtype, "location", "l", "server", "list the aviliable base image in \"local\" or \"server\"")
 	return Listcmd
-}
-
-func systemexec(s string) {
-	cmd := exec.Command("/bin/sh", "-c", s)
-	fmt.Println(s)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("%s", out.String())
 }
 
 func newCmdPull() *cobra.Command {
@@ -221,7 +235,7 @@ func newCmdPull() *cobra.Command {
 					fmt.Println("image file already exist ")
 
 				} else {
-					getcommands := []string{"baseimages", args[0]}
+					getcommands := []string{"baseimages", args[0] + ".tar"}
 					responsebody, status = sendGet(serverip, "8080", "v1", getcommands)
 					//download镜像
 
@@ -238,7 +252,7 @@ func newCmdPull() *cobra.Command {
 				//systemexec("cd base_image_repo/")
 				//systemexec("pwd")
 				//sudo docker load < base_image_repo/
-				systemexec("sudo docker load  < " + "./base_image_repo/" + args[0])
+				Fti.Systemexec("sudo docker load  < " + "./base_image_repo/" + args[0])
 			} else {
 				fmt.Println("auth err")
 			}
@@ -250,22 +264,50 @@ func newCmdPull() *cobra.Command {
 }
 
 func newCmdInfo() *cobra.Command {
+	var listtype string
 	Infocmd := &cobra.Command{
 		Use:   "info",
 		Short: "show the info running in server",
 		Long:  `show the info running in server details...`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if status := Auth(); status == 200 {
-				fmt.Println("test info")
-				//send get api
-				getcommands := []string{"namespaces", "default", "services", args[0], "state"}
-				responsebody, status := sendGet(serverip, "8080", "v1", getcommands)
-				fmt.Println(string(responsebody), status)
+				if strings.EqualFold(listtype, "service") {
+					fmt.Println("test service")
+					if len(args) == 0 {
+						fmt.Println("please input the service name")
+						return
+					}
+					//fmt.Println("test info")
+					////send get api
+					getcommands := []string{"namespaces", "default", "services", args[0], "state"}
+					responsebody, status := sendGet(serverip, "8080", "", getcommands)
+					fmt.Println(string(responsebody), status)
+
+				} else if strings.EqualFold(listtype, "node") {
+					fmt.Println("test node")
+					getcommands := []string{"nodes", "status"}
+					responsebody, status := sendGet(serverip, "8080", "v1", getcommands)
+					fmt.Println(string(responsebody), status)
+
+				} else if strings.EqualFold(listtype, "cluster") {
+					if len(args) == 0 {
+						fmt.Println("please input the user name")
+						return
+					}
+					getcommands := []string{"nodes", "user", args[0]}
+					responsebody, status := sendGet(serverip, "8080", "v1", getcommands)
+					fmt.Println(string(responsebody), status)
+
+				} else {
+					fmt.Println("invalid flag")
+				}
+
 			} else {
 				fmt.Println("auth err")
 			}
 		},
 	}
+	Infocmd.Flags().StringVarP(&listtype, "type", "t", "node", "list the basic info of \"node\" or \"cluster\" or \"service\"")
 	return Infocmd
 
 }
@@ -276,23 +318,101 @@ func newCmdbuild() *cobra.Command {
 		Short: "build the image from the war file",
 		Long:  `build the image from the war file details...`,
 		Run: func(cmd *cobra.Command, args []string) {
-			//if status := Auth(); status == 200 {
-			fmt.Println("test build")
-			//send get api
-			baseimage := args[0]
-			//				sourcedir := args[1]
-			//add the src to the base image and build the new image
-			err := Fti.Wartoimage(baseimage, "")
-			if err != nil {
-				panic(err)
+			if status := Auth(); status == 200 {
+				if len(args) == 0 {
+					fmt.Println("please inpute the base image name :build <baseimagename> <newimagename> <registryip:port>")
+					return
+				}
+				if len(args) == 1 {
+					fmt.Println("please inpute the new image name ::build <baseimagename> <newimagename> <registryip:port>")
+					return
+				}
+				if len(args) == 2 {
+					fmt.Println("please add the private registry ip:port")
+					return
+				}
+
+				baseimage := args[0]
+				newimage := args[1]
+				regurl := args[2]
+
+				_, err := os.Stat("./base_image_repo/" + baseimage + ".tar")
+				if err != nil {
+					fmt.Println("base image not exist")
+					return
+				}
+
+				fmt.Println("test build")
+				//send get api
+				//sourcedir := args[1]
+				//add the src to the base image and build the new image
+				Fti.Wartoimage(dockerdeamon, baseimage, newimage)
+				if err != nil {
+					panic(err)
+					return
+				}
+				//do not add :latest it's a tag
+				namewithreg := regurl + `/` + newimage
+				fmt.Println(namewithreg)
+				fmt.Println("push to the registry...")
+				fmt.Println(dockerdeamon + "/images/testnewimage/tag")
+				response, err := http.Post(dockerdeamon+"/images/"+newimage+"/tag",
+					"application/x-www-form-urlencoded",
+					strings.NewReader("repo="+namewithreg+"&force=1"))
+
+				if err != nil {
+					panic(err)
+				}
+				status := response.StatusCode
+				fmt.Println(status)
+				if status == 201 {
+					dockerpush := `sudo docker push ` + namewithreg
+					//	fmt.Println(dockerpush)
+					Fti.Systemexec(dockerpush)
+				} else {
+					fmt.Println("tag error")
+					return
+				}
+
+				//endpoint := "http://0.0.0.0:2376"
+				//client, _ := docker.NewClient(endpoint)
+				//pushopts := docker.PushImageOptions{
+				//	// Name of the image
+				//	Name: newimage,
+				//	// Tag of the image
+				//	Tag: "latest",
+				//	// Registry server to push the image
+				//	Registry: regurl,
+				//}
+
+				//pushauth := docker.AuthConfiguration{
+				//	Username:      "wangzhe",
+				//	Password:      "3.1415",
+				//	Email:         "w_hessen@126.com",
+				//	ServerAddress: "https://0.0.0.0",
+				//}
+
+				//err = client.PushImage(pushopts, pushauth)
+				//if err != nil {
+				//	panic(err)
+				//}
+
+				//response, err := http.Post("http://0.0.0.0:2376/images/"+newimage+"/tag",
+				//	"application/x-www-form-urlencoded",
+				//	strings.NewReader("repo="+regurl+"/"+newimage))
+				//if err != nil {
+				//	panic(err)
+				//}
+
+				//send the baseimage to the local registry
+				//postcommands := []string{"images", newimage, "tag?repo=" + regurl}
+				//sendPost("0.0.0.0", "2376", "", postcommands, "")
+				//todo: add the new docker image to the private registry
+				//todo: create the dockerfile automatically
+
+			} else {
+				fmt.Println("auth err")
 			}
-
-			//todo: add the new docker image to the private registry
-			//todo: create the dockerfile automatically
-
-			//} else {
-			//fmt.Println("auth err")
-			//}
 		},
 	}
 	return Buildcmd
@@ -380,15 +500,21 @@ func newCmdStart() *cobra.Command {
 
 				} else if len(args) == 1 {
 					fmt.Println("please input the service name")
+				} else if len(args) == 2 {
+					fmt.Println("please input the registry :ip:port")
 				} else {
+					rawimage := args[0]
+					service := args[1]
+					registryaddr := args[2]
+					//					imagename := registryaddr + "/" + rawimage
 					//modify the .startconfig change the containerimage tobe the arg[0] attention to user ` `
 
-					modifyimage := `sed -i "s/\"containerimage\":.*/\"containerimage\": \"` + args[0] + `\",/g" .startconfig`
+					modifyimage := `sed -i "s/\"containerimage\":.*/\"containerimage\": \"` + registryaddr + `\/` + rawimage + `\",/g" .startconfig`
 					//modify:=`sed -i "s/\"containerimage\":.*/\"containerimage\": \"test3\"/g" .startconfig`
-					systemexec(modifyimage)
+					Fti.Systemexec(modifyimage)
 
-					modifyservice := `sed -i "s/\"name\":.*/\"name\": \"` + args[1] + `\",/g" .startconfig`
-					systemexec(modifyservice)
+					modifyservice := `sed -i "s/\"name\":.*/\"name\": \"` + service + `\",/g" .startconfig`
+					Fti.Systemexec(modifyservice)
 
 					getcommands := []string{"namespaces", "default", "services"}
 					responsebody, status := sendPost(serverip, "8080", "v1", getcommands, "./.startconfig")
