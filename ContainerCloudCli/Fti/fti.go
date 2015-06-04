@@ -9,6 +9,9 @@ import (
 	"github.com/fsouza/go-dockerclient"
 	"os"
 	//"reflect"
+	"bytes"
+	"log"
+	"os/exec"
 )
 
 func Filecompress(tw *tar.Writer, dir string, fi os.FileInfo) {
@@ -28,23 +31,7 @@ func Filecompress(tw *tar.Writer, dir string, fi os.FileInfo) {
 	if err = tw.WriteHeader(hdr); err != nil {
 		panic(err)
 	}
-	//bad way
-	//	//信息头部 生成tar文件的时候要先写入tar结构体
-	//	h := new(tar.Header)
-	//	//fmt.Println(reflect.TypeOf(h))
 
-	//	h.Name = fi.Name()
-	//	h.Size = fi.Size()
-	//	h.Mode = int64(fi.Mode())
-	//	h.ModTime = fi.ModTime()
-
-	//	//将信息头部的内容写入
-	//	err = tw.WriteHeader(h)
-	//	if err != nil {
-	//		panic(err)
-	//	}
-
-	//copy(dst Writer,src Reader)
 	_, err = io.Copy(tw, fr)
 	if err != nil {
 		panic(err)
@@ -105,9 +92,14 @@ func Dircompress(tw *tar.Writer, dir string) {
 
 }
 
-func Dirtotar(sourcedir string, tardir string) {
+func Dirtotar(sourcedir string, tardir string, newimage string) {
 	//file write 在tardir目录下创建
-	fw, err := os.Create(tardir + "/" + "deployments.tar.gz")
+	_, err := os.Stat(sourcedir)
+	if err != nil {
+		fmt.Println("please create the deploy dir")
+		return
+	}
+	fw, err := os.Create(tardir + "/" + newimage + ".tar.gz")
 	//type of fw is *os.File
 	//	fmt.Println(reflect.TypeOf(fw))
 	if err != nil {
@@ -130,15 +122,17 @@ func Dirtotar(sourcedir string, tardir string) {
 	//	// add the dockerfile
 	//	fr, err := os.Open("Dockerfile")
 
+	//do not package the dockerfile individual
 	//write into the dockerfile
-	fileinfo, err := os.Stat("Dockerfile")
-	if err != nil {
-		panic(err)
+	//fileinfo, err := os.Stat(tardir + "/" + newimage + "_Dockerfile")
+	//fileinfo, err := os.Stat("./Dockerfile")
+	//if err != nil {
+	//	panic(err)
 
-	}
+	//}
 	//fmt.Println(reflect.TypeOf(os.FileInfo(fileinfo)))
 	//dockerfile要单独放在根目录下 和其他archivefile并列
-	Filecompress(tw, "", fileinfo)
+	//Filecompress(tw, "", fileinfo)
 
 	fmt.Println("tar.gz packaging OK")
 
@@ -153,13 +147,59 @@ func SourceTar(filename string) *os.File {
 
 }
 
+func Systemexec(s string) {
+	cmd := exec.Command("/bin/sh", "-c", s)
+	fmt.Println(s)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s", out.String())
+}
+
+func Createdockerfile(baseimage string, newimage string) {
+	targetDocker := newimage + "_deploy/" + newimage + "_Dockerfile"
+	_, err := os.Stat(targetDocker)
+	if err == nil {
+		os.Remove(targetDocker)
+	}
+	//recreate the file
+	dst, err := os.OpenFile(targetDocker, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		fmt.Println("please create the <newimagename>_deploy dir and add war file into it")
+		return
+	}
+	src, err := os.Open("./Dockerfile")
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = io.Copy(dst, src)
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer src.Close()
+	defer dst.Close()
+
+	modifybase := `sed -i "s/baseimage/` + baseimage + `/g"` + " ./" + targetDocker
+
+	Systemexec(modifybase)
+	modifynew := `sed -i "s/newimage/` + newimage + `/g"` + " ./" + targetDocker
+
+	Systemexec(modifynew)
+	//modify the docker file
+}
+
 //the image will be covered if the image already exist
-func Wartoimage(imagename string, uploaddir string) error {
-	//create temp dir
-	//deploydir := imagename + "_deploy"
-	//deploydir := uploaddir
-	sourcedir := imagename + "_deploy"
-	tardir := imagename + "_tar"
+func Wartoimage(dockerdeamon string, baseimage string, newimage string) {
+	// put the war file into the _deploy dir
+	sourcedir := newimage + "_deploy"
+	//put the baseimage_Dockerfile and the deployments.tar.gz into the baseimage_tar
+	tardir := newimage + "_tar"
 
 	//upload the war file from remote server to the deploy dir and add some scripts
 	//todo: add a rest api which could receive the tar file and put the war file into the _deploy dir
@@ -167,16 +207,20 @@ func Wartoimage(imagename string, uploaddir string) error {
 	//Createdir(deploydir)
 	fmt.Println(tardir)
 	Createdir(tardir)
-
+	defer os.RemoveAll(tardir)
 	//delete the temp dir at last
 	//defer Cleandir(imagename)
 
-	Dirtotar(sourcedir, tardir)
+	//create the dockerfile according to the baseimage in the baseimage_tar
+	Createdockerfile(baseimage, newimage)
+
+	Dirtotar(sourcedir, tardir, newimage)
+
 	//using go-docker client
-	endpoint := "http://0.0.0.0:2376"
+	endpoint := dockerdeamon
 	client, _ := docker.NewClient(endpoint)
 	//fmt.Println(client)
-	filename := tardir + "/" + "deployments.tar.gz"
+	filename := tardir + "/" + newimage + ".tar.gz"
 	//filename := "tardir/Dockerfile"
 	tarStream := SourceTar(filename)
 	defer tarStream.Close()
@@ -202,11 +246,11 @@ func Wartoimage(imagename string, uploaddir string) error {
 
 	opts := docker.BuildImageOptions{
 
-		Name:         imagename,
+		Name:         newimage,
 		InputStream:  tarStream,
 		OutputStream: os.Stdout,
 		Auth:         auth,
-		Dockerfile:   "Dockerfile",
+		Dockerfile:   newimage + "_deploy/" + newimage + "_Dockerfile",
 	}
 
 	//error
@@ -215,7 +259,7 @@ func Wartoimage(imagename string, uploaddir string) error {
 		panic(error)
 
 	}
-	return error
+	//return error
 }
 
 // 检查文件或目录是否存在

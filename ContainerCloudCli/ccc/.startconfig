@@ -6,21 +6,14 @@
             "protocol": "TCP"
         }
     ],
-    "replicas": 1,
+    "replicas": 2,
+    "runlocal":false,
     "containername": "7-jre-customize",
     "containerimage": "7-jre7-customize",
     "containerPort": [
         {
             "port": 8080,
             "protocol": "TCP"
-        }
-    ],
-    "volumes": [
-        {
-            "name": "test-volumn",
-            "hostPath": {
-                "path": "/home/vcap/logtest/logtest.war"
-            }
         }
     ]
 }

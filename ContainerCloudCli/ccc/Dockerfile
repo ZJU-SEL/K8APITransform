@@ -1,15 +1,14 @@
 # VERSION 0.0.1
-# using a tomcat7 image
-FROM tomcat:7-jre7
+# using a baseimage
+FROM baseimage
 # sign name
-MAINTAINER wangzhe "w_hessen@126.com"
+MAINTAINER zju 
 
 #copy the war file into the webapps
-ADD /logtest_deploy/logtest.war /usr/local/tomcat/webapps/ 
-EXPOSE 22
+ADD /newimage_deploy /usr/local/tomcat/webapps/ 
 
 # port 22
-
+EXPOSE 22
 
 # Tomcat 8080
 EXPOSE 8080
