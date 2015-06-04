@@ -1,13 +1,17 @@
 package models
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/coreos/go-etcd/etcd"
 	//"strconv"
 	//"time"
 )
 
 var (
-	UserList map[string]*User
+	UserList   map[string]*User
+	EtcdClient *etcd.Client
 )
 
 func init() {
@@ -25,10 +29,22 @@ type User struct {
 
 func AddUser(u User) (string, bool) {
 	u.Id = "user_" + u.Username
+	response, err := EtcdClient.Get("/users/"+u.Id, false, false)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 	if _, exist := UserList[u.Id]; exist {
 		return "", true
 	}
 	UserList[u.Id] = &u
+	data, err := json.Marshal(u)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	_, err := EtcdClient.Create("/users/"+u.Id, data, 0)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 	return u.Id, false
 }
 

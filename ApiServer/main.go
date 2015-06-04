@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/astaxie/beego"
+	"github.com/coreos/go-etcd/etcd"
 )
 
 var kubenets = flag.String(
@@ -16,13 +17,16 @@ var kubenets = flag.String(
 )
 
 func main() {
-	flag.Parse()
-	fmt.Println(*kubenets)
-	//models.KubenetesIp = *kubenets
-	models.KubernetesIp = beego.AppConfig.String("k8sip")
 
-	fmt.Println("k8sip is ", models.KubernetesIp)
-
+	//models.KubernetesIp = beego.AppConfig.String("k8sip")
+	machines := beego.AppConfig.Strings("etcdmachines")
+	//fmt.Println("k8sip is ", models.KubernetesIp)
+	Client, err := etcd.NewTLSClient(machines, "/home/zjw/etcdkey/devregistry.crt", "/home/zjw/etcdkey/devregistry.key", "/home/zjw/etcdkey/rootca.crt")
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	models.EtcdClient = Client
+	//response := models.EtcdClient.CreateDir("/user")
 	if beego.RunMode == "dev" {
 		beego.DirectoryIndex = true
 		beego.StaticDir["/swagger"] = "swagger"
