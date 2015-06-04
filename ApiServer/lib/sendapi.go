@@ -19,7 +19,7 @@ func sendbase(client *http.Client, apitype string, url string, body []byte) (int
 
 	//body为 []byte类型
 	body1, _ := ioutil.ReadAll(response.Body)
-
+	fmt.Println(string(body1))
 	//decoding the []body into the map
 	var result map[string]interface{}
 	if err := json.Unmarshal(body1, &result); err != nil {
@@ -88,8 +88,13 @@ func Sendapi(apitype string, host string, port string, version string, commands 
 
 	client := &http.Client{}
 	fmt.Println(reflect.TypeOf(client))
+	url := ""
 	//注意前面要加上http://
-	url := "http://" + host + ":" + port + "/api" + "/" + version
+	if version == "" {
+		url = "http://" + host + ":" + port + "/v1"
+	} else {
+		url = "http://" + host + ":" + port + "/api" + "/" + version
+	}
 	for _, str := range commands {
 		url = url + "/" + str
 

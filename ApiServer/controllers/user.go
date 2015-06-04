@@ -6,7 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/astaxie/beego"
+	"io/ioutil"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 // Operations about Users
@@ -23,9 +26,15 @@ type UserController struct {
 func (u *UserController) Post() {
 	var user models.User
 	json.Unmarshal(u.Ctx.Input.RequestBody, &user)
-	uid := models.AddUser(user)
+	uid, exist := models.AddUser(user)
+	if exist {
+		u.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		u.Ctx.ResponseWriter.WriteHeader(406)
+		fmt.Fprintln(u.Ctx.ResponseWriter, "user is exist")
+		return
+	}
 	body := `{"name":"` + user.Username + `"}`
-	lib.Sendapi("POST", "127.0.0.1", "8080", "v1", []string{"namespaces"}, []byte(body))
+	lib.Sendapi("POST", "127.0.0.1", "8081", "", []string{"namespaces"}, []byte(body))
 	u.Data["json"] = map[string]string{"uid": uid}
 	u.ServeJson()
 }
@@ -112,10 +121,22 @@ func (u *UserController) Login() {
 	//password := u.GetString("password")
 	fmt.Println(username)
 	fmt.Println(password)
-
+	ip := strings.Split(u.Ctx.Request.RemoteAddr, ":")[0]
 	if resuser, err := models.Login(username, password); err {
 		response, _ := json.Marshal(resuser)
 		fmt.Println(string(response))
+		resp, err := http.Get("http://" + models.KubernetesIp + ":8080/api/v1beta3/nodes/" + ip)
+		if err != nil {
+			fmt.Println(err.Error())
+		} else {
+			body, _ := ioutil.ReadAll(resp.Body)
+			var node = models.Node{}
+			json.Unmarshal(body, &node)
+			node.ObjectMeta.Labels = map[string]string{"namespace": username, "ip": ip}
+			body, _ = json.Marshal(node)
+			status, _ := lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"nodes", ip}, body)
+			fmt.Println("add label status:" + strconv.Itoa(status))
+		}
 		//u.Data["json"] = response
 		http.Error(u.Ctx.ResponseWriter, string(response)+"@login successful", 200)
 		return

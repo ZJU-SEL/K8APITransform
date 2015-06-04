@@ -6,60 +6,158 @@ import (
 
 func init() {
 	
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppDeleteController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppDeleteController"],
+		beego.ControllerComments{
+			"Delete",
+			`/`,
+			[]string{"delete"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"],
 		beego.ControllerComments{
 			"Post",
 			`/`,
 			[]string{"post"},
 			nil})
 
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"],
+		beego.ControllerComments{
+			"Get",
+			`/:objectId`,
+			[]string{"get"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"],
 		beego.ControllerComments{
 			"GetAll",
 			`/`,
 			[]string{"get"},
 			nil})
 
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
-		beego.ControllerComments{
-			"Get",
-			`/:uid`,
-			[]string{"get"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"],
 		beego.ControllerComments{
 			"Put",
-			`/:uid`,
+			`/:objectId`,
 			[]string{"put"},
 			nil})
 
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"],
 		beego.ControllerComments{
 			"Delete",
-			`/:uid`,
+			`/:objectId`,
 			[]string{"delete"},
 			nil})
 
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:LimitRangeController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:LimitRangeController"],
 		beego.ControllerComments{
-			"Login",
-			`/login`,
+			"Post",
+			`/`,
 			[]string{"post"},
 			nil})
 
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:LimitRangeController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:LimitRangeController"],
 		beego.ControllerComments{
-			"Auth",
-			`/auth`,
-			[]string{"post"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
-		beego.ControllerComments{
-			"Logout",
-			`/logout`,
+			"GetAll",
+			`/`,
 			[]string{"get"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:LimitRangeController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:LimitRangeController"],
+		beego.ControllerComments{
+			"Get",
+			`/:name`,
+			[]string{"get"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:LimitRangeController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:LimitRangeController"],
+		beego.ControllerComments{
+			"Delete",
+			`/:name`,
+			[]string{"delete"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppViewController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppViewController"],
+		beego.ControllerComments{
+			"Get",
+			`/`,
+			[]string{"get"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ResourceQuotaController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ResourceQuotaController"],
+		beego.ControllerComments{
+			"Post",
+			`/`,
+			[]string{"post"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ResourceQuotaController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ResourceQuotaController"],
+		beego.ControllerComments{
+			"GetAll",
+			`/`,
+			[]string{"get"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ResourceQuotaController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ResourceQuotaController"],
+		beego.ControllerComments{
+			"Get",
+			`/:name`,
+			[]string{"get"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ResourceQuotaController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ResourceQuotaController"],
+		beego.ControllerComments{
+			"Delete",
+			`/:name`,
+			[]string{"delete"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NodesController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NodesController"],
+		beego.ControllerComments{
+			"Status",
+			`/status`,
+			[]string{"get"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NodesController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NodesController"],
+		beego.ControllerComments{
+			"Addlabels",
+			`/addlabels`,
+			[]string{"get"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NodesController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NodesController"],
+		beego.ControllerComments{
+			"Getnodes",
+			`/user/:username`,
+			[]string{"get"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NamespaceController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NamespaceController"],
+		beego.ControllerComments{
+			"Post",
+			`/`,
+			[]string{"post"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NamespaceController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NamespaceController"],
+		beego.ControllerComments{
+			"GetAll",
+			`/`,
+			[]string{"get"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NamespaceController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NamespaceController"],
+		beego.ControllerComments{
+			"Get",
+			`/:name`,
+			[]string{"get"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NamespaceController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NamespaceController"],
+		beego.ControllerComments{
+			"Delete",
+			`/:name`,
+			[]string{"delete"},
 			nil})
 
 	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:BaseimageController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:BaseimageController"],
@@ -74,13 +172,6 @@ func init() {
 			"Downloadimage",
 			`/:imagename`,
 			[]string{"get"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppRollbackController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppRollbackController"],
-		beego.ControllerComments{
-			"Put",
-			`/`,
-			[]string{"put"},
 			nil})
 
 	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppController"],
@@ -146,32 +237,67 @@ func init() {
 			[]string{"put"},
 			nil})
 
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NamespaceController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NamespaceController"],
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
 		beego.ControllerComments{
 			"Post",
 			`/`,
 			[]string{"post"},
 			nil})
 
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NamespaceController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NamespaceController"],
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
 		beego.ControllerComments{
 			"GetAll",
 			`/`,
 			[]string{"get"},
 			nil})
 
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NamespaceController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NamespaceController"],
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
 		beego.ControllerComments{
 			"Get",
-			`/:name`,
+			`/:uid`,
 			[]string{"get"},
 			nil})
 
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NamespaceController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NamespaceController"],
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
+		beego.ControllerComments{
+			"Put",
+			`/:uid`,
+			[]string{"put"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
 		beego.ControllerComments{
 			"Delete",
-			`/:name`,
+			`/:uid`,
 			[]string{"delete"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
+		beego.ControllerComments{
+			"Login",
+			`/login`,
+			[]string{"post"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
+		beego.ControllerComments{
+			"Auth",
+			`/auth`,
+			[]string{"post"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
+		beego.ControllerComments{
+			"Logout",
+			`/logout`,
+			[]string{"get"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppRollbackController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppRollbackController"],
+		beego.ControllerComments{
+			"Put",
+			`/`,
+			[]string{"put"},
 			nil})
 
 	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppUpgradeController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppUpgradeController"],
@@ -179,125 +305,6 @@ func init() {
 			"Put",
 			`/`,
 			[]string{"put"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"],
-		beego.ControllerComments{
-			"Post",
-			`/`,
-			[]string{"post"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"],
-		beego.ControllerComments{
-			"Get",
-			`/:objectId`,
-			[]string{"get"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"],
-		beego.ControllerComments{
-			"GetAll",
-			`/`,
-			[]string{"get"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"],
-		beego.ControllerComments{
-			"Put",
-			`/:objectId`,
-			[]string{"put"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ObjectController"],
-		beego.ControllerComments{
-			"Delete",
-			`/:objectId`,
-			[]string{"delete"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppViewController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppViewController"],
-		beego.ControllerComments{
-			"Get",
-			`/`,
-			[]string{"get"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppDeleteController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppDeleteController"],
-		beego.ControllerComments{
-			"Delete",
-			`/`,
-			[]string{"delete"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ResourceQuotaController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ResourceQuotaController"],
-		beego.ControllerComments{
-			"Post",
-			`/`,
-			[]string{"post"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ResourceQuotaController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ResourceQuotaController"],
-		beego.ControllerComments{
-			"GetAll",
-			`/`,
-			[]string{"get"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ResourceQuotaController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ResourceQuotaController"],
-		beego.ControllerComments{
-			"Get",
-			`/:name`,
-			[]string{"get"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ResourceQuotaController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:ResourceQuotaController"],
-		beego.ControllerComments{
-			"Delete",
-			`/:name`,
-			[]string{"delete"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NodesController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NodesController"],
-		beego.ControllerComments{
-			"Status",
-			`/status`,
-			[]string{"get"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NodesController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:NodesController"],
-		beego.ControllerComments{
-			"Getnodes",
-			`/user/:username`,
-			[]string{"get"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:LimitRangeController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:LimitRangeController"],
-		beego.ControllerComments{
-			"Post",
-			`/`,
-			[]string{"post"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:LimitRangeController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:LimitRangeController"],
-		beego.ControllerComments{
-			"GetAll",
-			`/`,
-			[]string{"get"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:LimitRangeController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:LimitRangeController"],
-		beego.ControllerComments{
-			"Get",
-			`/:name`,
-			[]string{"get"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:LimitRangeController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:LimitRangeController"],
-		beego.ControllerComments{
-			"Delete",
-			`/:name`,
-			[]string{"delete"},
 			nil})
 
 }

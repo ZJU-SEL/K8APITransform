@@ -42,6 +42,15 @@ func (n *NodesController) Status() {
 	}
 }
 
+// @Title add node label
+// @Description add node label
+// @Param	body		body 	nil	 "body for user content"
+// @Success 201 {string} ""
+// @router /addlabels [get]
+func (n *NodesController) Addlabels() {
+
+}
+
 // @Title get node status
 // @Description get node status
 // @Param	body		body 	nil	 true		"body for user content"

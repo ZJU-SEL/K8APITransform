@@ -2,8 +2,8 @@ package models
 
 import (
 	"errors"
-	"strconv"
-	"time"
+	//"strconv"
+	//"time"
 )
 
 var (
@@ -23,10 +23,13 @@ type User struct {
 	Password string
 }
 
-func AddUser(u User) string {
-	u.Id = "user_" + strconv.FormatInt(time.Now().UnixNano(), 10)
+func AddUser(u User) (string, bool) {
+	u.Id = "user_" + u.Username
+	if _, exist := UserList[u.Id]; exist {
+		return "", true
+	}
 	UserList[u.Id] = &u
-	return u.Id
+	return u.Id, false
 }
 
 func GetUser(uid string) (u *User, err error) {
