@@ -4,24 +4,20 @@ import (
 	_ "K8APITransform/ApiServer/docs"
 	"K8APITransform/ApiServer/models"
 	_ "K8APITransform/ApiServer/routers"
-	"flag"
 	"fmt"
 	"github.com/astaxie/beego"
 	"github.com/coreos/go-etcd/etcd"
 )
 
-var kubenets = flag.String(
-	"kubenetsip",
-	"",
-	"base URL of the cloud controller",
-)
-
 func main() {
-
+	beego.SessionOn = true
 	//models.KubernetesIp = beego.AppConfig.String("k8sip")
 	machines := beego.AppConfig.Strings("etcdmachines")
+	serverCrt := beego.AppConfig.String("serverCrt")
+	serverKey := beego.AppConfig.String("serverKey")
+	rootCrt := beego.AppConfig.String("rootCrt")
 	//fmt.Println("k8sip is ", models.KubernetesIp)
-	Client, err := etcd.NewTLSClient(machines, "/home/zjw/etcdkey/devregistry.crt", "/home/zjw/etcdkey/devregistry.key", "/home/zjw/etcdkey/rootca.crt")
+	Client, err := etcd.NewTLSClient(machines, serverCrt, serverKey, rootCrt)
 	if err != nil {
 		fmt.Println(err.Error())
 	}

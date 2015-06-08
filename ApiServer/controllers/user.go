@@ -25,7 +25,16 @@ type UserController struct {
 // @router / [post]
 func (u *UserController) Post() {
 	var user models.User
+
 	json.Unmarshal(u.Ctx.Input.RequestBody, &user)
+	fmt.Println(user.Username)
+	err := user.Validate()
+	if err != nil {
+		u.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		u.Ctx.ResponseWriter.WriteHeader(406)
+		fmt.Fprintln(u.Ctx.ResponseWriter, err)
+		return
+	}
 	uid, exist := models.AddUser(user)
 	if exist {
 		u.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -33,8 +42,8 @@ func (u *UserController) Post() {
 		fmt.Fprintln(u.Ctx.ResponseWriter, "user is exist")
 		return
 	}
-	body := `{"name":"` + user.Username + `"}`
-	lib.Sendapi("POST", "127.0.0.1", "8081", "", []string{"namespaces"}, []byte(body))
+	//body := `{"name":"` + user.Username + `"}`
+	//lib.Sendapi("POST", "127.0.0.1", "8080", "", []string{"namespaces"}, []byte(body))
 	u.Data["json"] = map[string]string{"uid": uid}
 	u.ServeJson()
 }
@@ -80,6 +89,7 @@ func (u *UserController) Put() {
 	if uid != "" {
 		var user models.User
 		json.Unmarshal(u.Ctx.Input.RequestBody, &user)
+		fmt.Println(user.Ip)
 		uu, err := models.UpdateUser(uid, &user)
 		if err != nil {
 			u.Data["json"] = err
@@ -122,7 +132,8 @@ func (u *UserController) Login() {
 	fmt.Println(username)
 	fmt.Println(password)
 	ip := strings.Split(u.Ctx.Request.RemoteAddr, ":")[0]
-	if resuser, err := models.Login(username, password); err {
+	if resuser, success := models.Login(username, password); success {
+		u.SetSession("user", resuser)
 		response, _ := json.Marshal(resuser)
 		fmt.Println(string(response))
 		resp, err := http.Get("http://" + models.KubernetesIp + ":8080/api/v1beta3/nodes/" + ip)
@@ -178,6 +189,7 @@ func (u *UserController) Auth() {
 // @Success 200 {string} logout success
 // @router /logout [get]
 func (u *UserController) Logout() {
+	u.DelSession("user")
 	u.Data["json"] = "logout success"
 	u.ServeJson()
 }
