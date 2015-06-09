@@ -14,10 +14,11 @@ import (
 )
 
 func init() {
-	ns := beego.NewNamespace("/v1",
-		beego.NSNamespace("/object",
+
+	ns := beego.NewNamespace("v1",
+		beego.NSNamespace("/application",
 			beego.NSInclude(
-				&controllers.ObjectController{},
+				&controllers.AppController{},
 			),
 		),
 		beego.NSNamespace("/user",
@@ -25,61 +26,17 @@ func init() {
 				&controllers.UserController{},
 			),
 		),
-		beego.NSNamespace("/namespaces",
-			beego.NSNamespace("/:namespaces",
-				beego.NSNamespace("/resourcequotas",
-					beego.NSInclude(
-						&controllers.ResourceQuotaController{},
-					),
-				),
-				beego.NSNamespace("/limitranges",
-					beego.NSInclude(
-						&controllers.LimitRangeController{},
-					),
-				),
-				beego.NSNamespace("/services",
-					beego.NSInclude(
-						&controllers.AppController{},
-					),
-				),
-			),
-			beego.NSInclude(
-				&controllers.NamespaceController{},
-			),
-		),
-		//beego.NSNamespace("/namespaces",
-		//	beego.NSInclude(
-		//		&controllers.NamespaceController{},
-		//	),
-		//),
-		//beego.NSNamespace("/namespaces/:namespaces/limitranges",
-		//	beego.NSInclude(
-		//		&controllers.LimitRangeController{},
-		//	),
-		//),
-		//beego.NSNamespace("/namespaces/:namespaces/resourcequotas",
-		//	beego.NSInclude(
-		//		&controllers.ResourceQuotaController{},
-		//	),
-		//),
-		//beego.NSNamespace("/namespaces/:namespaces/services",
-		//	beego.NSInclude(
-		//		&controllers.AppController{},
-		//	),
-		//),
-		beego.NSNamespace("/baseimages",
+		beego.NSNamespace("/s",
 			beego.NSInclude(
 				&controllers.BaseimageController{},
-			),
-		),
-		beego.NSNamespace("/nodes",
-			beego.NSInclude(
-				&controllers.NodesController{},
 			),
 		),
 		beego.NSPost("/namespaces/:namespace/upload/:appname", controllers.Appuploadandtoimage),
 		//beego.NSGet("/baseimage/search", controllers.Baseimagelist),
 		//beego.NSGet("/baseimage/pull/:imagename", controllers.Baseimagepull),
 	)
+	//beego.Router("/application/v1", &controllers.AppController{})
+	//beego.Router("/user", &controllers.UserController{})
+	//beego.NSPost("/v1/namespaces/:namespace/upload/:appname", controllers.Appuploadandtoimage)
 	beego.AddNamespace(ns)
 }

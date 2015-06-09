@@ -1,15 +1,15 @@
 package controllers
 
 import (
-	"K8APITransform/ApiServer/lib"
+	//"K8APITransform/ApiServer/lib"
 	"K8APITransform/ApiServer/models"
 	"encoding/json"
 	"fmt"
 	"github.com/astaxie/beego"
-	"io/ioutil"
+	//"io/ioutil"
 	"net/http"
-	"strconv"
-	"strings"
+	//"strconv"
+	//"strings"
 )
 
 // Operations about Users
@@ -131,23 +131,23 @@ func (u *UserController) Login() {
 	//password := u.GetString("password")
 	fmt.Println(username)
 	fmt.Println(password)
-	ip := strings.Split(u.Ctx.Request.RemoteAddr, ":")[0]
+	//ip := strings.Split(u.Ctx.Request.RemoteAddr, ":")[0]
 	if resuser, success := models.Login(username, password); success {
-		u.SetSession("user", resuser)
+		u.SetSession("user", resuser.Id)
 		response, _ := json.Marshal(resuser)
 		fmt.Println(string(response))
-		resp, err := http.Get("http://" + models.KubernetesIp + ":8080/api/v1beta3/nodes/" + ip)
-		if err != nil {
-			fmt.Println(err.Error())
-		} else {
-			body, _ := ioutil.ReadAll(resp.Body)
-			var node = models.Node{}
-			json.Unmarshal(body, &node)
-			node.ObjectMeta.Labels = map[string]string{"namespace": username, "ip": ip}
-			body, _ = json.Marshal(node)
-			status, _ := lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"nodes", ip}, body)
-			fmt.Println("add label status:" + strconv.Itoa(status))
-		}
+		//resp, err := http.Get("http://" + models.KubernetesIp + ":8080/api/v1beta3/nodes/" + ip)
+		//if err != nil {
+		//	fmt.Println(err.Error())
+		//} else {
+		//	body, _ := ioutil.ReadAll(resp.Body)
+		//	var node = models.Node{}
+		//	json.Unmarshal(body, &node)
+		//	node.ObjectMeta.Labels = map[string]string{"namespace": username, "ip": ip}
+		//	body, _ = json.Marshal(node)
+		//	status, _ := lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"nodes", ip}, body)
+		//	fmt.Println("add label status:" + strconv.Itoa(status))
+		//}
 		//u.Data["json"] = response
 		http.Error(u.Ctx.ResponseWriter, string(response)+"@login successful", 200)
 		return

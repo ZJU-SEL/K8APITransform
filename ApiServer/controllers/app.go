@@ -25,13 +25,41 @@ func NewIntOrStringFromInt(val int) models.IntOrString {
 	return models.IntOrString{Kind: models.IntstrInt, IntVal: val}
 }
 
+// @Title CreateEnv
+// @Description createEnv
+
+// @router /createEnv [post]
+func (a *AppController) CreateEnv() {
+	var env models.AppEnv
+	err := json.Unmarshal(a.Ctx.Input.RequestBody, &env)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	err = env.Validate()
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	err = models.AddAppEnv(&env)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	a.Data["json"] = map[string]string{"msg": "SUCCESS"}
+	a.ServeJson()
+}
+
 // @Title createApp
-// @Description create app
+// @Description createEnv
 // @Param	namespaces	path 	string	true		"The key for staticblock"
 // @Param	body		body 	models.AppCreateRequest	 true		"body for user content"
 // @Success 200 {string} "create success"
 // @Failure 403 body is empty
-// @router / [post]
+// @router /createEnv [post]
 func (a *AppController) Post() {
 	namespace := a.Ctx.Input.Param(":namespaces")
 	var app models.AppCreateRequest
