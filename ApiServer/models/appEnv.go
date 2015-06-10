@@ -7,7 +7,7 @@ import (
 type AppEnv struct {
 	TomcatV string
 	JdkV    string
-	NodeNum string
+	NodeNum int
 	Name    string
 	Used    int
 }
@@ -27,9 +27,6 @@ func (key AppEnv) Validate() error {
 		}
 	*/
 
-	if key.NodeNum == "" {
-		validationError = validationError.Append(ErrInvalidField{"NodeNum"})
-	}
 	if key.Name == "" {
 		validationError = validationError.Append(ErrInvalidField{"Name"})
 	}

@@ -11,7 +11,7 @@ import (
 
 func main() {
 	beego.SessionOn = true
-	//models.KubernetesIp = beego.AppConfig.String("k8sip")
+	models.KubernetesIp = beego.AppConfig.String("k8sip")
 	machines := beego.AppConfig.Strings("etcdmachines")
 	serverCrt := beego.AppConfig.String("serverCrt")
 	serverKey := beego.AppConfig.String("serverKey")

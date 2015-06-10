@@ -4,6 +4,14 @@ import (
 	"bytes"
 )
 
+type ErrResponse struct {
+	Response string
+}
+
+func (err ErrResponse) Error() string {
+	return "err: " + err.Response
+}
+
 type ErrInvalidField struct {
 	Field string
 }

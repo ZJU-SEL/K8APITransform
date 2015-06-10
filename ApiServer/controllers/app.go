@@ -10,7 +10,9 @@ import (
 	"strings"
 	//"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	"github.com/astaxie/beego"
+	"io"
 	"net/http"
+	"os"
 	"path"
 	//"time"
 )
@@ -53,40 +55,180 @@ func (a *AppController) CreateEnv() {
 	a.ServeJson()
 }
 
-// @Title createApp
-// @Description createEnv
-// @Param	namespaces	path 	string	true		"The key for staticblock"
-// @Param	body		body 	models.AppCreateRequest	 true		"body for user content"
-// @Success 200 {string} "create success"
-// @Failure 403 body is empty
-// @router /createEnv [post]
-func (a *AppController) Post() {
-	namespace := a.Ctx.Input.Param(":namespaces")
-	var app models.AppCreateRequest
-	err := json.Unmarshal(a.Ctx.Input.RequestBody, &app)
+// @Title upload war
+// @Description upload
+
+// @router /upload [post]
+func (a *AppController) Upload() {
+	//a.ParseForm()
+	file, handle, err := a.GetFile("filePath")
+	version := a.GetString("version")
+	fmt.Println(version)
 	if err != nil {
-		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		a.Ctx.ResponseWriter.WriteHeader(406)
-		fmt.Fprintln(a.Ctx.ResponseWriter, err)
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
-	err = app.Validate()
+	f, err := os.OpenFile("applications/"+handle.Filename+version, os.O_WRONLY|os.O_CREATE, 0666)
+	io.Copy(f, file)
 	if err != nil {
-		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		a.Ctx.ResponseWriter.WriteHeader(406)
-		fmt.Fprintln(a.Ctx.ResponseWriter, err)
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
-	image := ""
-	if app.Warpath == "" {
-		////
-		image = "reg-5000-gorouter"
+	defer f.Close()
+	defer file.Close()
+	a.Data["json"] = map[string]string{"msg": "SUCCESS"}
+	a.ServeJson()
+}
 
-	} else {
-		image = "" //war to image
+// @Title deploy
+// @Description deploy
+
+// @router /deploy [post]
+func (a *AppController) Deploy() {
+	deployReq := models.DeployRequest{}
+	err := json.Unmarshal(a.Ctx.Input.RequestBody, &deployReq)
+	//fmt.Println(deployReq)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
 	}
+	err = deployReq.Validate()
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	env, err := models.GetAppEnv(deployReq.EnvName)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	imagename := ""
+	//wartoimage
+	//uploadimage
+	//createapplication imagename = ""
+	app := &models.AppCreateRequest{
+		Name: env.Name + strconv.Itoa(env.Used),
+		Ports: []models.Port{
+			models.Port{
+				Port:       8080,
+				TargetPort: 8080,
+				Protocol:   "tcp",
+			},
+		},
+		Replicas: env.NodeNum,
+		ContainerPort: []models.Containerport{
+			models.Containerport{
+				Port:     8080,
+				Protocol: "tcp",
+			},
+		},
+		Containername:  env.Name + strconv.Itoa(env.Used),
+		Containerimage: imagename,
+	}
+	result, err := a.CreateApp(app)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	env.Used++
+	err = models.UpdateAppEnv(env.Name, env)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	a.Data["json"] = result
+	a.ServeJson()
+}
 
-	fmt.Printf("%s", image)
+// @Title restartApp
+// @Description restartApp
+
+// @router /restartApp [post]
+func (a *AppController) RestartApp() {
+	namespace := "wangzhe"
+	req := map[string]string{}
+	err := json.Unmarshal(a.Ctx.Input.RequestBody, &req)
+	//fmt.Println(deployReq)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	fmt.Println(req["appName"])
+	if _, exist := req["appName"]; exist == false {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+"request not has appName "+`"}`, 406)
+		return
+	}
+	appName := req["appName"]
+	url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/replicationcontrollers/" + appName
+	rsp, _ := http.Get(url)
+	var rc models.ReplicationController
+	body, _ := ioutil.ReadAll(rsp.Body)
+	err = json.Unmarshal(body, &rc)
+	fmt.Println(string(body))
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	replicas := rc.Spec.Replicas
+	rc.Spec.Replicas = 0
+	body, _ = json.Marshal(rc)
+	status, result := lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", rc.ObjectMeta.Name}, body)
+	fmt.Println(status)
+	if status != 200 {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		a.Ctx.ResponseWriter.WriteHeader(406)
+		fmt.Fprintln(a.Ctx.ResponseWriter, result)
+		return
+	}
+	body, _ = json.Marshal(result)
+	json.Unmarshal(body, &rc)
+	rc.Spec.Replicas = replicas
+	body, _ = json.Marshal(rc)
+	status, result = lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", rc.ObjectMeta.Name}, body)
+	fmt.Println(status)
+	if status != 200 {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		a.Ctx.ResponseWriter.WriteHeader(406)
+		fmt.Fprintln(a.Ctx.ResponseWriter, result)
+		return
+	}
+	a.Data["json"] = map[string]string{"msg": "SUCCESS"}
+	a.ServeJson()
+}
+
+// @Title getEnv
+// @Description getEnv
+
+// @router /getEnv/:envname [get]
+func (a *AppController) GetEnv() {
+	name := a.Ctx.Input.Param(":envname")
+	env, err := models.GetAppEnv(name)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	a.Data["json"] = env
+	a.ServeJson()
+}
+
+func (a *AppController) CreateApp(app *models.AppCreateRequest) (map[string]interface{}, error) {
+	//var result = map[string]interface{}{}
+	namespace := "default"
+	err := app.Validate()
+	if err != nil {
+		return nil, err
+	}
 	containerports := []models.ContainerPort{}
 	for _, v := range app.ContainerPort {
 		containerports = append(containerports, models.ContainerPort{
@@ -109,32 +251,31 @@ func (a *AppController) Post() {
 			VolumeMounts: volumemount,
 		},
 	}
-	var nodeSelector = map[string]string{}
-	if app.Runlocal {
-		nodeSelector["namespace"] = namespace
-	} else {
-		nodeSelector["ip"] = strings.Split(a.Ctx.Request.RemoteAddr, ":")[0]
-	}
+	//var nodeSelector = map[string]string{}
+	//if app.Runlocal {
+	//	nodeSelector["namespace"] = namespace
+	//} else {
+	//	nodeSelector["ip"] = strings.Split(a.Ctx.Request.RemoteAddr, ":")[0]
+	//}
 	var rc = &models.ReplicationController{
 		TypeMeta: models.TypeMeta{
 			Kind:       "ReplicationController",
 			APIVersion: "v1beta3",
 		},
 		ObjectMeta: models.ObjectMeta{
-			Name:   app.Name + "-" + "1",
+			Name:   app.Name,
 			Labels: map[string]string{"name": app.Name},
 		},
 		Spec: models.ReplicationControllerSpec{
 			Replicas: 1,
-			Selector: map[string]string{"version": app.Name + "-" + "1"},
+			Selector: map[string]string{"name": app.Name},
 			Template: &models.PodTemplateSpec{
 				ObjectMeta: models.ObjectMeta{
-					Labels: map[string]string{"name": app.Name, "version": app.Name + "-" + "1"},
+					Labels: map[string]string{"name": app.Name},
 				},
 				Spec: models.PodSpec{
-					Containers:   containers,
-					Volumes:      app.Volumes,
-					NodeSelector: nodeSelector,
+					Containers: containers,
+					Volumes:    app.Volumes,
 				},
 			},
 		},
@@ -143,11 +284,10 @@ func (a *AppController) Post() {
 	status, result := lib.Sendapi("POST", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers"}, body)
 	responsebody, _ := json.Marshal(result)
 	if status != 201 {
-		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		a.Ctx.ResponseWriter.WriteHeader(status)
-		fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
-		return
+		//fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
+		return nil, models.ErrResponse{Response: string(responsebody)}
 	}
+	//result["RC"]=
 	var Ports = []models.ServicePort{}
 	for k, v := range app.Ports {
 		Ports = append(Ports, models.ServicePort{
@@ -191,10 +331,7 @@ func (a *AppController) Post() {
 	status, result = lib.Sendapi("POST", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "services"}, body)
 	responsebody, _ = json.Marshal(result)
 	if status != 201 {
-		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		a.Ctx.ResponseWriter.WriteHeader(status)
-		fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
-		return
+		return nil, models.ErrResponse{Response: string(responsebody)}
 	}
 
 	_, exist := models.Appinfo[namespace]
@@ -209,8 +346,7 @@ func (a *AppController) Post() {
 			Status:   1,
 		}
 	}
-	a.Data["json"] = map[string]string{"messages": "create service successfully"}
-	a.ServeJson()
+	return nil, nil
 }
 
 // @Title get all apps
@@ -623,19 +759,5 @@ func (a *AppController) Upgrade() {
 		}
 	}
 	a.Data["json"] = re
-	a.ServeJson()
-}
-
-// @Title Roll back App
-// @Description roll back app
-// @Param	namespaces	path 	string	true		"The key for namespaces"
-// @Param	service		path 	string	true		"The key for name"
-// @Param	body		body 	models.AppCreateRequest	 true		"body for user content"
-// @Success 200 {string} "create success"
-// @Failure 403 body is empty
-// @router /:service/rollback [put]
-func (a *AppController) Rollback() {
-
-	a.Data["json"] = map[string]string{"status": "rollback success"}
 	a.ServeJson()
 }
