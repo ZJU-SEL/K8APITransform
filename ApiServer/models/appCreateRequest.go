@@ -11,6 +11,7 @@ type Containerport struct {
 }
 type AppCreateRequest struct {
 	Name           string
+	Version        string
 	Ports          []Port
 	Replicas       int
 	Runlocal       bool

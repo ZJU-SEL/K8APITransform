@@ -7,7 +7,7 @@ import (
 type AppEnv struct {
 	TomcatV string
 	JdkV    string
-	NodeNum int
+	NodeNum string
 	Name    string
 	Used    int
 }
@@ -56,6 +56,27 @@ func GetAppEnv(envname string) (*AppEnv, error) {
 	}
 
 	return &env, nil
+}
+func DeleteAppEnv(envname string) error {
+	_, err := EtcdClient.Delete("/envs/"+envname, false)
+	return err
+
+}
+func GetAllAppEnv() ([]*AppEnv, error) {
+	response, err := EtcdClient.Get("/envs/", false, true)
+	if err != nil {
+		return nil, err
+	}
+	var envs = []*AppEnv{}
+	for _, v := range response.Node.Nodes {
+		var env = AppEnv{}
+		err = json.Unmarshal([]byte(v.Value), &env)
+		if err != nil {
+			return nil, err
+		}
+		envs = append(envs, &env)
+	}
+	return envs, nil
 }
 func UpdateAppEnv(envname string, env *AppEnv) error {
 	data, err := json.Marshal(env)
