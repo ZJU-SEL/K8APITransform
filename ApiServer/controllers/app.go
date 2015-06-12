@@ -88,8 +88,13 @@ func (a *AppController) Upload() {
 	appName := a.GetString("appName")
 	fmt.Println(version)
 
+	//todo :use regx
+	app_part := strings.Split(appName, ".")[0]
+	appName = app_part + "-" + version + ".war"
+
 	username := "cxy"
-	uploaddir := "applications/" + username + "/" + appName + "-" + version + "_deploy/"
+	//uploaddir := "applications/" + username + "/" + appName + "-" + version + "_deploy/"
+	uploaddir := "applications/" + username + "/" + appName + "_deploy/"
 	Fti.Createdir(uploaddir)
 	//version := a.GetString("version")
 
@@ -101,7 +106,8 @@ func (a *AppController) Upload() {
 	}
 	//f, err := os.OpenFile("applications/"+handle.Filename+version, os.O_WRONLY|os.O_CREATE, 0666)
 	fmt.Println(uploaddir)
-	f, err := os.OpenFile(uploaddir+appName+"-"+version, os.O_WRONLY|os.O_CREATE, 0666)
+	//f, err := os.OpenFile(uploaddir+appName+"-"+version, os.O_WRONLY|os.O_CREATE, 0666)
+	f, err := os.OpenFile(uploaddir+appName, os.O_WRONLY|os.O_CREATE, 0666)
 	io.Copy(f, file)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
@@ -122,7 +128,7 @@ func (a *AppController) Deploy() {
 	namespace := "default"
 	deployReq := models.DeployRequest{}
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &deployReq)
-	//fmt.Println(deployReq)
+	fmt.Println(deployReq)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
@@ -149,7 +155,14 @@ func (a *AppController) Deploy() {
 	}
 
 	username := "cxy"
-	newimage := uploadfilename
+	//newimage := uploadfilename
+
+	newimage_part := strings.Split(uploadfilename, "-")[0]
+	newimage_name := strings.Split(newimage_part, ".")[0]
+	newimage_version := strings.Split(uploadfilename, "-")[1]
+	newimage := newimage_name + "-" + newimage_version + ".war"
+
+	fmt.Println("newimagename:", newimage)
 	//deployReq imagename string, uploaddir string) error
 	dockerdeamon := "unix:///var/run/docker.sock"
 	//dockerdeamon := "http://10.211.55.10:2376"
@@ -168,7 +181,8 @@ func (a *AppController) Deploy() {
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
-	imagename := newimage
+	imagename := imageprefix + "/" + newimage
+	fmt.Println("newimage:", imagename)
 
 	//imagename := "7-jre-customize"
 	//wartoimage
@@ -197,6 +211,7 @@ func (a *AppController) Deploy() {
 	}
 	service, err := a.CreateApp(app)
 	if err != nil {
+		a.deleteapp(app.Name + "-" + app.Version)
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
@@ -235,18 +250,24 @@ func (a *AppController) Deploy() {
 		}
 
 		tomcat.Context = append(tomcat.Context, models.Detail{
-			PodName:    "Node" + strconv.Itoa(k+1),
-			AppVersion: v.ObjectMeta.Labels["name"],
+			PodName: "Node" + strconv.Itoa(k+1),
+			//AppVersion: v.ObjectMeta.Labels["name"],
+			AppVersion: deployReq.AppVersion,
 			Status:     status,
 			NodeType:   3,
 		})
 	}
 	tomcat.Children = append(tomcat.Children, models.Detail{
-		Name:     env.Name,
+		Name:     "应用",
 		NodeType: 3,
-		Status:   1,
-		IP:       service.Spec.PortalIP,
-		AppName:  service.ObjectMeta.Labels["name"],
+		Context:  []models.Detail{},
+	})
+	tomcat.Children[0].Context = append(tomcat.Children[0].Context, models.Detail{
+		Name:         service.ObjectMeta.Labels["name"],
+		NodeType:     4,
+		Status:       1,
+		IP:           service.Spec.PortalIP,
+		OriginalName: deployReq.WarName,
 	})
 	detail.Children = append(detail.Children, tomcat)
 	a.Data["json"] = detail
@@ -302,29 +323,46 @@ func (a *AppController) getdetails(env *models.AppEnv) *models.Detail {
 		},
 	})
 	tomcat := models.Detail{Name: "tomcat", Status: 1, NodeType: 2, Context: []models.Detail{}, Children: []models.Detail{}}
-	for k, v := range podslist.Items {
-		status := 0
-		if v.Status.Phase == models.PodRunning {
-			status = 1
+	if len(podslist.Items) == 0 {
+		num, _ := strconv.Atoi(env.NodeNum)
+		for k := 0; k < num; k++ {
+			//names := strings.Split(v.ObjectMeta.Labels["name"], "-")
+			tomcat.Context = append(tomcat.Context, models.Detail{
+				PodName:  "Node" + strconv.Itoa(k+1),
+				NodeType: 3,
+			})
 		}
-		//names := strings.Split(v.ObjectMeta.Labels["name"], "-")
-		tomcat.Context = append(tomcat.Context, models.Detail{
-			PodName:    "Node" + strconv.Itoa(k+1),
-			AppVersion: v.ObjectMeta.Labels["name"],
-			Status:     status,
-			NodeType:   3,
-		})
+	} else {
+		for k, v := range podslist.Items {
+			status := 0
+			if v.Status.Phase == models.PodRunning {
+				status = 1
+			}
+			//names := strings.Split(v.ObjectMeta.Labels["name"], "-")
+			tomcat.Context = append(tomcat.Context, models.Detail{
+				PodName:    "Node" + strconv.Itoa(k+1),
+				AppVersion: v.ObjectMeta.Labels["name"],
+				Status:     status,
+				NodeType:   3,
+			})
+		}
 	}
+	apps := []models.Detail{}
 	for _, v := range serviceslist.Items {
 		//names := strings.Split(v.ObjectMeta.Labels["name"], "-")
-		tomcat.Children = append(tomcat.Children, models.Detail{
-			Name:     env.Name,
-			NodeType: 3,
+		apps = append(apps, models.Detail{
+			Name:     v.ObjectMeta.Labels["name"],
+			NodeType: 4,
 			Status:   1,
 			IP:       v.Spec.PortalIP,
-			AppName:  v.ObjectMeta.Labels["name"],
 		})
 	}
+	tomcat.Children = append(tomcat.Children, models.Detail{
+		Name:     "应用",
+		NodeType: 3,
+		Context:  []models.Detail{},
+	})
+	tomcat.Children[0].Context = append(tomcat.Children[0].Context, apps...)
 	detail.Children = append(detail.Children, tomcat)
 	return detail
 }
@@ -621,6 +659,48 @@ func (a *AppController) Scale() {
 	}
 	a.Data["json"] = map[string]string{"msg": "SUCCESS"}
 	a.ServeJson()
+}
+
+// @Title createApp
+// @Description create app
+// @Param	namespaces	path 	string	true		"The key for namespaces"
+// @Param	service		path 	string	true		"The key for name"
+// @Success 200 {string} "create success"
+// @Failure 403 body is empty
+// @router /delete [delete]
+func (a *AppController) DeleteApp() {
+	//namespace := "default"
+	//service := a.Ctx.Input.Param(":service")
+	var app = map[string]string{}
+	err := json.Unmarshal(a.Ctx.Input.RequestBody, &app)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	//fmt.Println(appScale.Num)
+
+	if _, exist := app["appName"]; exist == false {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+"not send appName"+`"}`, 406)
+		return
+	}
+	appName := app["appName"]
+	a.deleteapp(appName)
+	//re := map[string]interface{}{}
+	//re["delete rc"] = result
+	//delete(models.Appinfo[namespace], service)
+	a.Data["json"] = map[string]string{"msg": "SUCCESS"}
+	a.ServeJson()
+
+}
+func (a *AppController) deleteapp(appName string) {
+	namespace := "default"
+	appName = strings.ToLower(appName)
+	appName = strings.Replace(appName, ".", "", -1)
+	lib.Sendapi("DELETE", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "services", appName}, []byte{})
+	//re["delete service"] = result
+	lib.Sendapi("DELETE", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", appName}, []byte{})
 }
 
 //// @Title get all apps
