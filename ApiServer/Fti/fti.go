@@ -240,7 +240,7 @@ func Wartoimage(dockerdeamon string, imageprefix string, username string, baseim
 	//Createdir(deploydir)
 	fmt.Println(tardir)
 	Createdir(tardir)
-	//defer os.RemoveAll(tardir)
+	defer os.RemoveAll(tardir)
 	//delete the temp dir at last
 	//defer Cleandir(imagename)
 
