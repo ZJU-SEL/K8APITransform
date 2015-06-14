@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+
 	"path"
 	//"time"
 )
@@ -68,12 +69,67 @@ func (a *AppController) CreateEnv() {
 	tomcat := models.Detail{Name: "tomcat", Status: 1, NodeType: 2, Context: []models.Detail{}, Children: []models.Detail{}}
 	for i := 1; i <= num; i++ {
 		tomcat.Context = append(tomcat.Context, models.Detail{
-			PodName:  "Node" + strconv.Itoa(i),
+			Name:     "Node" + strconv.Itoa(i),
 			NodeType: 3,
 		})
 	}
 	detail.Children = append(detail.Children, tomcat)
 	a.Data["json"] = detail
+	a.ServeJson()
+}
+
+// @Title GetUploadWars
+// @Description GetUploadWars
+
+// @router /getuploadwars [get]
+func (a *AppController) Getuploadwars() {
+	username := "cxy"
+	dirhandle, err := os.Open("applications/" + username)
+	//fmt.Println(dirname)
+	//fmt.Println(reflect.TypeOf(dirhandle))
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	defer dirhandle.Close()
+
+	//fis, err := ioutil.ReadDir(dir)
+	fis, err := dirhandle.Readdir(0)
+	//fis的类型为 []os.FileInfo
+	//fmt.Println(reflect.TypeOf(fis))
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	result := []interface{}{}
+	//遍历文件列表 (no dir inside) 每一个文件到要写入一个新的*tar.Header
+	//var fi os.FileInfo
+	for _, fi := range fis {
+
+		//如果是普通文件 直接写入 dir 后面已经有了/
+		filename := fi.Name()
+		fmt.Println(filename)
+		fileinfo := strings.Split(filename, "_")
+		if fileinfo[len(fileinfo)-1] == "deploy" {
+			filename = strings.TrimRight(filename, "_deploy")
+			filename = strings.TrimRight(filename, ".war")
+			fileinfo = strings.Split(filename, "-")
+			version := fileinfo[len(fileinfo)-1]
+			warname := strings.TrimRight(filename, "-"+version) + ".war"
+			data := `{"id": 1,"name": "` + warname + `","nodeType": 0,"resource": [{"name": "app_version","value": "` + version + `"}]}`
+			mapdata := map[string]interface{}{}
+			json.Unmarshal([]byte(data), &mapdata)
+			result = append(result, mapdata)
+		}
+		if err != nil {
+			a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+			http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+			return
+		}
+	}
+	a.Data["json"] = result
 	a.ServeJson()
 }
 
@@ -87,9 +143,10 @@ func (a *AppController) Upload() {
 	version := a.GetString("version")
 	appName := a.GetString("appName")
 	fmt.Println(version)
-
+	date := []byte(appName)
+	date = date[0 : len(date)-4]
 	//todo :use regx
-	app_part := strings.Split(appName, ".")[0]
+	app_part := string(date)
 	appName = app_part + "-" + version + ".war"
 
 	username := "cxy"
@@ -147,19 +204,36 @@ func (a *AppController) Deploy() {
 		return
 	}
 
-	var uploadfilename string
-	if deployReq.AppVersion != "" {
-		uploadfilename = deployReq.WarName + "-" + deployReq.AppVersion
-	} else {
-		uploadfilename = deployReq.WarName
-	}
+	uploadfilename := deployReq.WarName
+	//var uploadfilename string
+	//if deployReq.AppVersion != "" {
+	//	uploadfilename = deployReq.WarName + "-" + deployReq.AppVersion
+	//} else {
+	//	uploadfilename = deployReq.WarName
+	//}
 
 	username := "cxy"
 	//newimage := uploadfilename
 
-	newimage_part := strings.Split(uploadfilename, "-")[0]
-	newimage_name := strings.Split(newimage_part, ".")[0]
-	newimage_version := strings.Split(uploadfilename, "-")[1]
+	//newimage_part := strings.Split(uploadfilename, "-")[0]
+	if deployReq.IsGreyUpdating == "0" {
+		//namespace := "default"
+		url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/services" + "?labelSelector=env%3D" + deployReq.EnvName
+		//fmt.Println(url)
+		rsp, _ := http.Get(url)
+		var serviceslist models.ServiceList
+		body, _ := ioutil.ReadAll(rsp.Body)
+		json.Unmarshal(body, &serviceslist)
+		for _, v := range serviceslist.Items {
+			a.deleteapp(v.ObjectMeta.Labels["name"])
+		}
+
+	}
+	newimage_name_temp := []byte(uploadfilename)
+	newimage_name := string(newimage_name_temp[0 : len(newimage_name_temp)-4])
+	//newimage_name := strings.Split(newimage_part, ".")[0]
+
+	newimage_version := deployReq.AppVersion
 	newimage := newimage_name + "-" + newimage_version + ".war"
 
 	fmt.Println("newimagename:", newimage)
@@ -250,7 +324,7 @@ func (a *AppController) Deploy() {
 		}
 
 		tomcat.Context = append(tomcat.Context, models.Detail{
-			PodName: "Node" + strconv.Itoa(k+1),
+			Name: "Node" + strconv.Itoa(k+1),
 			//AppVersion: v.ObjectMeta.Labels["name"],
 			AppVersion: deployReq.AppVersion,
 			Status:     status,
@@ -266,7 +340,7 @@ func (a *AppController) Deploy() {
 		Name:         service.ObjectMeta.Labels["name"],
 		NodeType:     4,
 		Status:       1,
-		IP:           service.Spec.PortalIP,
+		Resource:     []models.Detail{models.Detail{Name: "IP", Value: service.Spec.PortalIP + ":8080"}},
 		OriginalName: deployReq.WarName,
 	})
 	detail.Children = append(detail.Children, tomcat)
@@ -328,7 +402,7 @@ func (a *AppController) getdetails(env *models.AppEnv) *models.Detail {
 		for k := 0; k < num; k++ {
 			//names := strings.Split(v.ObjectMeta.Labels["name"], "-")
 			tomcat.Context = append(tomcat.Context, models.Detail{
-				PodName:  "Node" + strconv.Itoa(k+1),
+				Name:     "Node" + strconv.Itoa(k+1),
 				NodeType: 3,
 			})
 		}
@@ -340,7 +414,7 @@ func (a *AppController) getdetails(env *models.AppEnv) *models.Detail {
 			}
 			//names := strings.Split(v.ObjectMeta.Labels["name"], "-")
 			tomcat.Context = append(tomcat.Context, models.Detail{
-				PodName:    "Node" + strconv.Itoa(k+1),
+				Name:       "Node" + strconv.Itoa(k+1),
 				AppVersion: v.ObjectMeta.Labels["name"],
 				Status:     status,
 				NodeType:   3,
@@ -354,7 +428,7 @@ func (a *AppController) getdetails(env *models.AppEnv) *models.Detail {
 			Name:     v.ObjectMeta.Labels["name"],
 			NodeType: 4,
 			Status:   1,
-			IP:       v.Spec.PortalIP,
+			Resource: []models.Detail{models.Detail{Name: "IP", Value: v.Spec.PortalIP + ":8080"}},
 		})
 	}
 	tomcat.Children = append(tomcat.Children, models.Detail{

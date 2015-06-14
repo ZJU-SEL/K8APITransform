@@ -2,6 +2,7 @@ package models
 
 type Detail struct {
 	Name         string   `json:"name,omitempty"`
+	Resource     []Detail `json:"resource,omitempty"`
 	PodName      string   `json:"podName,omitempty"`
 	Status       int      `json:"status,omitempty"`
 	NodeType     int      `json:"nodeType,omitempty"`
@@ -10,5 +11,6 @@ type Detail struct {
 	AppName      string   `json:"appName,omitempty"`
 	IP           string   `json:"IP,omitempty"`
 	Context      []Detail `json:"context,omitempty"`
+	Value        string   `json:"value,omitempty"`
 	Children     []Detail `json:"children,omitempty"`
 }

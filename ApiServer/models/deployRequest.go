@@ -1,9 +1,10 @@
 package models
 
 type DeployRequest struct {
-	EnvName    string
-	WarName    string
-	AppVersion string
+	EnvName        string
+	WarName        string
+	AppVersion     string
+	IsGreyUpdating string
 }
 
 func (key DeployRequest) Validate() error {
