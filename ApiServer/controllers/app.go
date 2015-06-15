@@ -218,6 +218,7 @@ func (a *AppController) Deploy() {
 	//newimage_part := strings.Split(uploadfilename, "-")[0]
 	if deployReq.IsGreyUpdating == "0" {
 		//namespace := "default"
+		fmt.Println("delete all apps before")
 		url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/services" + "?labelSelector=env%3D" + deployReq.EnvName
 		//fmt.Println(url)
 		rsp, _ := http.Get(url)
@@ -285,7 +286,10 @@ func (a *AppController) Deploy() {
 	}
 	service, err := a.CreateApp(app)
 	if err != nil {
-		a.deleteapp(app.Name + "-" + app.Version)
+		if !strings.Contains(err.Error(), "replicationControllers") {
+			a.deleteapp(app.Name + "-" + app.Version)
+		}
+
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
@@ -407,15 +411,17 @@ func (a *AppController) getdetails(env *models.AppEnv) *models.Detail {
 			})
 		}
 	} else {
+
 		for k, v := range podslist.Items {
 			status := 0
 			if v.Status.Phase == models.PodRunning {
 				status = 1
 			}
+			info := strings.Split(v.ObjectMeta.Labels["name"], "-")
 			//names := strings.Split(v.ObjectMeta.Labels["name"], "-")
 			tomcat.Context = append(tomcat.Context, models.Detail{
 				Name:       "Node" + strconv.Itoa(k+1),
-				AppVersion: v.ObjectMeta.Labels["name"],
+				AppVersion: info[len(info)-1],
 				Status:     status,
 				NodeType:   3,
 			})

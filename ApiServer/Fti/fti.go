@@ -265,21 +265,11 @@ func Wartoimage(dockerdeamon string, imageprefix string, username string, baseim
 	tarStream := SourceTar(filename)
 	defer tarStream.Close()
 	fmt.Println(tarStream)
-	//  test the basic using
-	//	imgs, _ := client.ListImages(docker.ListImagesOptions{All: false})
-	//	for _, img := range imgs {
-	//		fmt.Println("ID: ", img.ID)
-	//		fmt.Println("RepoTags: ", img.RepoTags)
-	//		fmt.Println("Created: ", img.Created)
-	//		fmt.Println("Size: ", img.Size)
-	//		fmt.Println("VirtualSize: ", img.VirtualSize)
-	//		fmt.Println("ParentId: ", img.ParentID)
-	//	}
 
 	//dockerhub的认证信息
 	auth := docker.AuthConfiguration{
-	//	Username:      "wangzhe",
-	//	Password:      "3.1415",
+	//	Username:      "",
+	//	Password:      "",
 	//	Email:         "w_hessen@126.com",
 	//	ServerAddress: "https://10.211.55.5",
 	}
@@ -294,14 +284,31 @@ func Wartoimage(dockerdeamon string, imageprefix string, username string, baseim
 
 	//error
 	err = client.BuildImage(opts)
+
 	if err != nil {
 		return "", err
 
 	}
 
+	pushopts := docker.PushImageOptions{
+		Name:     imageprefix + "/" + strings.ToLower(newimage),
+		Tag:      "latest",
+		Registry: imageprefix,
+		//OutputStream: os.Stdout,
+	}
+
+	fmt.Println("Name:", newimage)
+
+	fmt.Println("Registry:", imageprefix)
+
+	err = client.PushImage(pushopts, auth)
+	if err != nil {
+		return "", err
+	}
+
 	//send the image to the private registry
-	pushcommand := `docker push ` + imageprefix + "/" + strings.ToLower(newimage)
-	Systemexec(pushcommand)
+	//pushcommand := `docker push ` + imageprefix + "/" + strings.ToLower(newimage)
+	//Systemexec(pushcommand)
 	return strings.ToLower(newimage), nil
 }
 
