@@ -31,7 +31,8 @@ func NewIntOrStringFromInt(val int) models.IntOrString {
 
 // @Title CreateEnv
 // @Description createEnv
-
+// @Param	body		body 	models.AppEnv	 true		"body for user content"
+// @Success 200 {string}  "create env success"
 // @router /createEnv [post]
 func (a *AppController) CreateEnv() {
 	var env models.AppEnv
@@ -80,7 +81,7 @@ func (a *AppController) CreateEnv() {
 
 // @Title GetUploadWars
 // @Description GetUploadWars
-
+// @Success 200 {string}  "get uploadwars success"
 // @router /getuploadwars [get]
 func (a *AppController) Getuploadwars() {
 	username := "cxy"
@@ -135,7 +136,7 @@ func (a *AppController) Getuploadwars() {
 
 // @Title upload war
 // @Description upload
-
+// @Success 200 {string}  "upload app success"
 // @router /upload [post]
 func (a *AppController) Upload() {
 	//a.ParseForm()
@@ -179,7 +180,8 @@ func (a *AppController) Upload() {
 
 // @Title deploy
 // @Description deploy
-
+// @Param	body		body 	models.DeployRequest	 true		"body for user content"
+// @Success 200 {string}  "deploy app success"
 // @router /deploy [post]
 func (a *AppController) Deploy() {
 	namespace := "default"
@@ -350,7 +352,7 @@ func (a *AppController) Deploy() {
 
 // @Title get partDetails
 // @Description get partDetails
-
+// @Success 200 {string}  "get partdetails success"
 // @router /partDetails [get]
 func (a *AppController) PartDetails() {
 	//a.ParseForm()
@@ -443,7 +445,7 @@ func (a *AppController) getdetails(env *models.AppEnv) *models.Detail {
 
 // @Title get Details
 // @Description get Details
-
+// @Success 200 {string}  "get details success"
 // @router /details [get]
 func (a *AppController) Details() {
 	envs, err := models.GetAllAppEnv()
@@ -462,7 +464,8 @@ func (a *AppController) Details() {
 
 // @Title restartApp
 // @Description restartApp
-
+// @Param	body		body 	map[string]string	 true		"body for user content"
+// @Success 200 {string}  "restart app success"
 // @router /restartApp [post]
 func (a *AppController) RestartApp() {
 	namespace := "default"
@@ -524,7 +527,7 @@ func (a *AppController) RestartApp() {
 
 // @Title getEnv
 // @Description getEnv
-
+// @Success 200 {string}  "get  envname  success"
 // @router /getEnv/:envname [get]
 func (a *AppController) GetEnv() {
 	name := a.Ctx.Input.Param(":envname")
@@ -540,7 +543,7 @@ func (a *AppController) GetEnv() {
 
 // @Title deleteEnv
 // @Description deleteEnv
-
+// @Success 200 {string}  "get env success"
 // @router /deleteEnv/:envname [delete]
 func (a *AppController) DeleteEnv() {
 	name := a.Ctx.Input.Param(":envname")
@@ -688,10 +691,8 @@ func (a *AppController) CreateApp(app *models.AppCreateRequest) (*models.Service
 
 // @Title ScaleApp
 // @Description Scale app
-// @Param       namespaces      path    string  true            "The key for namespaces"
-// @Param       service         path    string  true            "The key for name"
-// @Param       body            body    models.AppUpgradeRequest         true           "body for user content"
-// @Success 200 {string} "scale success"
+// @Param       body         body    models.AppScale         true           "body for user content"
+// @Success 200 {string}  "scale app success"
 // @Failure 403 body is empty
 // @router /scaleApp [put]
 func (a *AppController) Scale() {
@@ -737,9 +738,8 @@ func (a *AppController) Scale() {
 
 // @Title createApp
 // @Description create app
-// @Param	namespaces	path 	string	true		"The key for namespaces"
-// @Param	service		path 	string	true		"The key for name"
-// @Success 200 {string} "create success"
+// @Param       body            body    map[string]string         true           "body for user content"
+// @Success 200 {string}  "delete app success"
 // @Failure 403 body is empty
 // @router /delete [delete]
 func (a *AppController) DeleteApp() {
