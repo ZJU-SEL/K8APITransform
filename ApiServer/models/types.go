@@ -258,6 +258,42 @@ type Capabilities struct {
 	Drop []CapabilityType `json:"drop,omitempty"`
 }
 
+// SELinuxOptions are the labels to be applied to the container
+type SELinuxOptions struct {
+	// SELinux user label
+	User string `json:"user,omitempty" description:"the user label to apply to the container"`
+
+	// SELinux role label
+	Role string `json:"role,omitempty" description:"the role label to apply to the container"`
+
+	// SELinux type label
+	Type string `json:"type,omitempty" description:"the type label to apply to the container"`
+
+	// SELinux level label.
+	Level string `json:"level,omitempty" description:"the level label to apply to the container"`
+}
+
+// SecurityContext holds security configuration that will be applied to a container.  SecurityContext
+// contains duplication of some existing fields from the Container resource.  These duplicate fields
+// will be populated based on the Container configuration if they are not set.  Defining them on
+// both the Container AND the SecurityContext will result in an error.
+type SecurityContext struct {
+	// Capabilities are the capabilities to add/drop when running the container
+	// Must match Container.Capabilities or be unset.  Will be defaulted to Container.Capabilities if left unset
+	Capabilities *Capabilities `json:"capabilities,omitempty" description:"the linux capabilites that should be added or removed"`
+
+	// Run the container in privileged mode
+	// Must match Container.Privileged or be unset.  Will be defaulted to Container.Privileged if left unset
+	Privileged *bool `json:"privileged,omitempty" description:"run the container in privileged mode"`
+
+	// SELinuxOptions are the labels to be applied to the container
+	// and volumes
+	SELinuxOptions *SELinuxOptions `json:"seLinuxOptions,omitempty" description:"options that control the SELinux labels applied"`
+
+	// RunAsUser is the UID to run the entrypoint of the container process.
+	RunAsUser *int64 `json:"runAsUser,omitempty" description:"the user id that runs the first process in the container"`
+}
+
 // Container represents a single container that is expected to be run on the host.
 type Container struct {
 	// Required: This must be a DNS_LABEL.  Each container in a pod must
@@ -280,12 +316,10 @@ type Container struct {
 	Lifecycle      *Lifecycle           `json:"lifecycle,omitempty"`
 	// Required.
 	TerminationMessagePath string `json:"terminationMessagePath,omitempty"`
-	// Optional: Default to false.
-	Privileged bool `json:"privileged,omitempty"`
 	// Required: Policy for pulling images for this container
 	ImagePullPolicy PullPolicy `json:"imagePullPolicy"`
 	// Optional: Capabilities for container.
-	Capabilities Capabilities `json:"capabilities,omitempty"`
+	SecurityContext *SecurityContext `json:"securityContext,omitempty" description:"security options the pod should run with"`
 }
 
 // ObjectReference contains enough information to let you inspect or modify the referred object.
@@ -345,10 +379,10 @@ type PodSpec struct {
 	// NodeSelector is a selector which must be true for the pod to fit on a node
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
-	// Host is a request to schedule this pod onto a specific host.  If it is non-empty,
-	// the the scheduler simply schedules this pod onto that host, assuming that it fits
-	// resource requirements.
-	Host string `json:"host,omitempty"`
+	// NodeName is a request to schedule this pod onto a specific node.  If it is non-empty,
+	// the scheduler simply schedules this pod onto that node, assuming that it fits resource
+	// requirements.
+	NodeName string `json:"nodeName,omitempty" description:"node requested for this pod"`
 	// Uses the host's network namespace. If this option is set, the ports that will be
 	// used must be specified.
 	// Optional: Default to false.
@@ -426,34 +460,59 @@ type ServicePort struct {
 	TargetPort int `json:"targetPort"`
 }
 
+// Service Type string describes ingress methods for a service
+type ServiceType string
+
+const (
+	// ServiceTypeClusterIP means a service will only be accessible inside the
+	// cluster, via the cluster IP.
+	ServiceTypeClusterIP ServiceType = "ClusterIP"
+
+	// ServiceTypeNodePort means a service will be exposed on one port of
+	// every node, in addition to 'ClusterIP' type.
+	ServiceTypeNodePort ServiceType = "NodePort"
+
+	// ServiceTypeLoadBalancer means a service will be exposed via an
+	// external load balancer (if the cloud provider supports it), in addition
+	// to 'NodePort' type.
+	ServiceTypeLoadBalancer ServiceType = "LoadBalancer"
+)
+
+// Session Affinity Type string
+type ServiceAffinity string
+
+const (
+	// ServiceAffinityClientIP is the Client IP based.
+	ServiceAffinityClientIP ServiceAffinity = "ClientIP"
+
+	// ServiceAffinityNone - no session affinity.
+	ServiceAffinityNone ServiceAffinity = "None"
+)
+
 // ServiceSpec describes the attributes that a user creates on a service
 type ServiceSpec struct {
 	// Required: The list of ports that are exposed by this service.
-	Ports []ServicePort `json:"ports"`
+	Ports []ServicePort `json:"ports" description:"ports exposed by the service"`
 
-	// This service will route traffic to pods having labels matching this selector. If empty or not present,
-	// the service is assumed to have endpoints set by an external process and Kubernetes will not modify
-	// those endpoints.
-	Selector map[string]string `json:"selector"`
+	// This service will route traffic to pods having labels matching this selector. If null, no endpoints will be automatically created. If empty, all pods will be selected.
+	Selector map[string]string `json:"selector,omitempty" description:"label keys and values that must match in order to receive traffic for this service; if empty, all pods are selected, if not specified, endpoints must be manually specified"`
 
-	// PortalIP is usually assigned by the master.  If specified by the user
+	// ClusterIP is usually assigned by the master.  If specified by the user
 	// we will try to respect it or else fail the request.  This field can
 	// not be changed by updates.
 	// Valid values are None, empty string (""), or a valid IP address
 	// None can be specified for headless services when proxying is not required
-	PortalIP string `json:"portalIP,omitempty"`
+	ClusterIP string `json:"clusterIP,omitempty description: IP address of the service; usually assigned by the system; if specified, it will be allocated to the service if unused, and creation of the service will fail otherwise; cannot be updated; 'None' can be specified for a headless service when proxying is not required"`
 
-	// CreateExternalLoadBalancer indicates whether a load balancer should be created for this service.
-	CreateExternalLoadBalancer bool `json:"createExternalLoadBalancer,omitempty"`
-	// PublicIPs are used by external load balancers, or can be set by
+	// Type determines how the service will be exposed.  Valid options: ClusterIP, NodePort, LoadBalancer
+	Type ServiceType `json:"type,omitempty" description:"type of this service; must be ClusterIP, NodePort, or LoadBalancer; defaults to ClusterIP"`
+
+	// Deprecated. PublicIPs are used by external load balancers, or can be set by
 	// users to handle external traffic that arrives at a node.
-	// For load balancers, the publicIP will usually be the IP address of the load balancer,
-	// but some load balancers (notably AWS ELB) use a hostname instead of an IP address.
-	// For hostnames, the user will use a CNAME record (instead of using an A record with the IP)
-	PublicIPs []string `json:"publicIPs,omitempty"`
+	DeprecatedPublicIPs []string `json:"deprecatedPublicIPs,omitempty" description:"deprecated. externally visible IPs (e.g. load balancers) that should be proxied to this service"`
 
-	// Required: Supports "ClientIP" and "None".  Used to maintain session affinity.
-	SessionAffinity AffinityType `json:"sessionAffinity,omitempty"`
+	// Optional: Supports "ClientIP" and "None".  Used to maintain session affinity.
+	SessionAffinity ServiceAffinity `json:"sessionAffinity,omitempty" description:"enable client IP based session affinity; must be ClientIP or None; defaults to None"`
 }
 
 // Service is a named abstraction of software service (for example, mysql) consisting of local port
@@ -553,9 +612,9 @@ type ContainerStateTerminated struct {
 // Only one of its members may be specified.
 // If none of them is specified, the default one is ContainerStateWaiting.
 type ContainerState struct {
-	Waiting     *ContainerStateWaiting    `json:"waiting,omitempty"`
-	Running     *ContainerStateRunning    `json:"running,omitempty"`
-	Termination *ContainerStateTerminated `json:"termination,omitempty"`
+	Waiting    *ContainerStateWaiting    `json:"waiting,omitempty"`
+	Running    *ContainerStateRunning    `json:"running,omitempty"`
+	Terminated *ContainerStateTerminated `json:"terminated,omitempty" description:"details about a terminated container"`
 }
 type ContainerStatus struct {
 	// Each container in a pod must have a unique name.
@@ -579,7 +638,7 @@ type ContainerStatus struct {
 // state of a system.
 type PodStatus struct {
 	Phase      PodPhase       `json:"phase,omitempty"`
-	Conditions []PodCondition `json:"Condition,omitempty"`
+	Conditions []PodCondition `json:"conditions,omitempty" description:"current service state of pod" patchStrategy:"merge" patchMergeKey:"type"`
 	// A human readable message indicating details about why the pod is in this state.
 	Message string `json:"message,omitempty"`
 
@@ -821,7 +880,7 @@ type StatusDetails struct {
 	// The ID attribute of the resource associated with the status StatusReason
 	// (when there is a single ID which can be described).
 	// TODO: replace with Name with v1beta3
-	ID string `json:"id,omitempty"`
+	Name string `json:"name,omitempty" description:"the name attribute of the resource associated with the status StatusReason (when there is a single name which can be described)"`
 	// The kind attribute of the resource associated with the status StatusReason.
 	// On some operations may differ from the requested resource Kind.
 	Kind string `json:"kind,omitempty"`
