@@ -31,7 +31,7 @@ func init() {
 				&controllers.BaseimageController{},
 			),
 		),
-		beego.NSPost("/namespaces/:namespace/upload/:appname", controllers.Appuploadandtoimage),
+		//beego.NSPost("/namespaces/:namespace/upload/:appname", controllers.Appuploadandtoimage),
 		//beego.NSGet("/baseimage/search", controllers.Baseimagelist),
 		//beego.NSGet("/baseimage/pull/:imagename", controllers.Baseimagepull),
 	)

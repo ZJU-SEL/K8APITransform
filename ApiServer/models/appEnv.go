@@ -1,6 +1,7 @@
 package models
 
 import (
+	"K8APITransform/ApiServer/backend"
 	"encoding/json"
 )
 
@@ -39,6 +40,11 @@ func (key AppEnv) Validate() error {
 func AddAppEnv(env *AppEnv) error {
 	data, _ := json.Marshal(env)
 	_, err := EtcdClient.Create("/envs/"+env.Name, string(data), 0)
+	//IdPools.CreateIdPool(env.Name)
+	if err != nil {
+		return err
+	}
+	err = backend.IdPools.CreateIdPool(env.Name)
 	if err != nil {
 		return err
 	}
