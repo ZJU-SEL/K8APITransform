@@ -20,5 +20,5 @@ func NewBackend(host string, apiVersion string) (*Backend, error) {
 	return &Backend{Client}, nil
 }
 func (c *Backend) Applications(env string) ApplicationInterface {
-	return newApplications(c, namespace)
+	return newApplications(c, env)
 }

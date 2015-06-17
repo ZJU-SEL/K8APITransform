@@ -1,6 +1,8 @@
 package main
 
 import (
+	"K8APITransform/ApiServer/backend"
+	"K8APITransform/ApiServer/controllers"
 	_ "K8APITransform/ApiServer/docs"
 	"K8APITransform/ApiServer/models"
 	_ "K8APITransform/ApiServer/routers"
@@ -17,6 +19,7 @@ func main() {
 	serverKey := beego.AppConfig.String("serverKey")
 	rootCrt := beego.AppConfig.String("rootCrt")
 	//fmt.Println("k8sip is ", models.KubernetesIp)
+	controllers.K8sBackend = backend.NewBackend(models.KubernetesIp, "v1beta3")
 	Client, err := etcd.NewTLSClient(machines, serverCrt, serverKey, rootCrt)
 	if err != nil {
 		fmt.Println(err.Error())

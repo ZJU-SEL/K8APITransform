@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	//"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
+	"K8APITransform/ApiServer/backend"
 	"github.com/astaxie/beego"
 	"io"
 	"net/http"
@@ -18,6 +19,8 @@ import (
 	"path"
 	//"time"
 )
+
+var K8sBackend *backend.Backend
 
 // Operations about App
 type AppController struct {
@@ -228,22 +231,22 @@ func (a *AppController) Deploy() {
 			a.deleteapp(v.ObjectMeta.Labels["name"])
 		}
 
-	}
-	newimage_name_temp := []byte(uploadfilename)
-	newimage_name := string(newimage_name_temp[0 : len(newimage_name_temp)-4])
-	//newimage_name := strings.Split(newimage_part, ".")[0]
-
-	newimage_version := deployReq.AppVersion
-	newimage := newimage_name + "-" + newimage_version + ".war"
-
-	fmt.Println("newimagename:", newimage)
-	//deployReq imagename string, uploaddir string) error
-	dockerdeamon := "unix:///var/run/docker.sock"
-	//dockerdeamon := "http://10.211.55.10:2376"
-
-	imageprefix := username + "reg:5000"
-
-	//deployReq imagename string, uploaddir string) error
+		}
+		newimage_name_temp := []byte(uploadfilename)
+		newimage_name := string(newimage_name_temp[0 : len(newimage_name_temp)-4])
+		//newimage_name := strings.Split(newimage_part, ".")[0]
+	
+		newimage_version := deployReq.AppVersion
+		newimage := newimage_name + "-" + newimage_version + ".war"
+	
+		fmt.Println("newimagename:", newimage)
+		//deployReq imagename string, uploaddir string) error
+		dockerdeamon := "unix:///var/run/docker.sock"
+		//dockerdeamon := "http://10.211.55.10:2376"
+	
+		imageprefix := username + "reg:5000"
+	
+		//deployReq imagename string, uploaddir string) error
 	//dockerdeamon := "unix:///var/run/docker.sock"
 	baseimage := "jre7" + "-" + "tomcat7"
 	//baseimage = env.JdkV + "-" + env.TomcatV
@@ -264,8 +267,8 @@ func (a *AppController) Deploy() {
 	//createapplication imagename = ""
 	replicas, err := strconv.Atoi(env.NodeNum)
 	app := &models.AppCreateRequest{
-		Name:    env.Name,
-		Version: deployReq.WarName + "-" + deployReq.AppVersion,
+		Name:    deployReq.WarName,
+		Version: deployReq.AppVersion,
 		Ports: []models.Port{
 			models.Port{
 				Port:       8080,
@@ -283,6 +286,8 @@ func (a *AppController) Deploy() {
 		Containername:  env.Name,
 		Containerimage: imagename,
 	}
+
+	K8sBackend.Applications(env.Name).Create
 	service, err := a.CreateApp(app)
 	if err != nil {
 		a.deleteapp(app.Name + "-" + app.Version)
