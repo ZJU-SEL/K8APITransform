@@ -1,5 +1,9 @@
 package models
 
+import (
+	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
+)
+
 type Port struct {
 	Port       int
 	TargetPort int
@@ -19,7 +23,7 @@ type AppCreateRequest struct {
 	Containerimage string
 	Warpath        string
 	ContainerPort  []Containerport
-	Volumes        []Volume
+	Volumes        []api.Volume
 	PublicIPs      []string
 }
 

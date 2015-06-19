@@ -1,6 +1,7 @@
 package models
 
 type AppScale struct {
-	Name string `json:"appName,omitempty"`
-	Num  string `json:"insNum,omitempty"`
+	EnvName string `json:"envName,omitempty"`
+	Name    string `json:"appName,omitempty"`
+	Num     string `json:"insNum,omitempty"`
 }

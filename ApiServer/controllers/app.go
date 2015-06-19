@@ -10,17 +10,17 @@ import (
 	"strconv"
 	"strings"
 	//"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
-	"K8APITransform/ApiServer/backend"
+	//"K8APITransform/ApiServer/backend"
 	"github.com/astaxie/beego"
 	"io"
 	"net/http"
 	"os"
 
-	"path"
+	//"path"
 	//"time"
 )
 
-var K8sBackend *backend.Backend
+var K8sBackend *models.Backend
 
 // Operations about App
 type AppController struct {
@@ -231,22 +231,22 @@ func (a *AppController) Deploy() {
 			a.deleteapp(v.ObjectMeta.Labels["name"])
 		}
 
-		}
-		newimage_name_temp := []byte(uploadfilename)
-		newimage_name := string(newimage_name_temp[0 : len(newimage_name_temp)-4])
-		//newimage_name := strings.Split(newimage_part, ".")[0]
-	
-		newimage_version := deployReq.AppVersion
-		newimage := newimage_name + "-" + newimage_version + ".war"
-	
-		fmt.Println("newimagename:", newimage)
-		//deployReq imagename string, uploaddir string) error
-		dockerdeamon := "unix:///var/run/docker.sock"
-		//dockerdeamon := "http://10.211.55.10:2376"
-	
-		imageprefix := username + "reg:5000"
-	
-		//deployReq imagename string, uploaddir string) error
+	}
+	newimage_name_temp := []byte(uploadfilename)
+	newimage_name := string(newimage_name_temp[0 : len(newimage_name_temp)-4])
+	//newimage_name := strings.Split(newimage_part, ".")[0]
+
+	newimage_version := deployReq.AppVersion
+	newimage := newimage_name + "-" + newimage_version + ".war"
+
+	fmt.Println("newimagename:", newimage)
+	//deployReq imagename string, uploaddir string) error
+	dockerdeamon := "unix:///var/run/docker.sock"
+	//dockerdeamon := "http://10.211.55.10:2376"
+
+	imageprefix := username + "reg:5000"
+
+	//deployReq imagename string, uploaddir string) error
 	//dockerdeamon := "unix:///var/run/docker.sock"
 	baseimage := "jre7" + "-" + "tomcat7"
 	//baseimage = env.JdkV + "-" + env.TomcatV
@@ -266,7 +266,7 @@ func (a *AppController) Deploy() {
 	//uploadimage
 	//createapplication imagename = ""
 	replicas, err := strconv.Atoi(env.NodeNum)
-	app := &models.AppCreateRequest{
+	app := models.AppCreateRequest{
 		Name:    deployReq.WarName,
 		Version: deployReq.AppVersion,
 		Ports: []models.Port{
@@ -287,8 +287,7 @@ func (a *AppController) Deploy() {
 		Containerimage: imagename,
 	}
 
-	K8sBackend.Applications(env.Name).Create
-	service, err := a.CreateApp(app)
+	detail, err := K8sBackend.Applications(env.Name).Create(app)
 	if err != nil {
 		a.deleteapp(app.Name + "-" + app.Version)
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
@@ -302,53 +301,6 @@ func (a *AppController) Deploy() {
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
-	url := "http://" + models.KubernetesIp + ":8080/api/v1/namespaces/" + namespace + "/pods" + "?labelSelector=name%3D" + app.Name + "-" + app.Version
-	//fmt.Println(url)
-	rsp, _ := http.Get(url)
-	var podslist models.PodList
-	body, _ := ioutil.ReadAll(rsp.Body)
-	json.Unmarshal(body, &podslist)
-	fmt.Println(string(body))
-	detail := &models.Detail{Name: env.Name, Status: 1, NodeType: 1, Context: []models.Detail{}, Children: []models.Detail{}}
-	detail.Children = append(detail.Children, models.Detail{
-		Name:     "Nginx",
-		Status:   1,
-		NodeType: 2,
-		Context: []models.Detail{
-			models.Detail{
-				Name:     "Node1",
-				NodeType: 2,
-			},
-		},
-	})
-	tomcat := models.Detail{Name: "tomcat", Status: 1, NodeType: 2, Context: []models.Detail{}, Children: []models.Detail{}}
-	for k, v := range podslist.Items {
-		status := 0
-		if v.Status.Phase == models.PodRunning {
-			status = 1
-		}
-
-		tomcat.Context = append(tomcat.Context, models.Detail{
-			Name: "Node" + strconv.Itoa(k+1),
-			//AppVersion: v.ObjectMeta.Labels["name"],
-			AppVersion: deployReq.AppVersion,
-			Status:     status,
-			NodeType:   3,
-		})
-	}
-	tomcat.Children = append(tomcat.Children, models.Detail{
-		Name:     "应用",
-		NodeType: 3,
-		Context:  []models.Detail{},
-	})
-	tomcat.Children[0].Context = append(tomcat.Children[0].Context, models.Detail{
-		Name:         service.ObjectMeta.Labels["name"],
-		NodeType:     4,
-		Status:       1,
-		Resource:     []models.Detail{models.Detail{Name: "IP", Value: service.Spec.ClusterIP + ":8080"}},
-		OriginalName: deployReq.WarName,
-	})
-	detail.Children = append(detail.Children, tomcat)
 	a.Data["json"] = detail
 	a.ServeJson()
 }
@@ -361,13 +313,13 @@ func (a *AppController) PartDetails() {
 	//a.ParseForm()
 	envName := a.GetString("envName")
 	fmt.Println(envName)
-	env, err := models.GetAppEnv(envName)
+	detail, err := K8sBackend.Applications(envName).List()
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
-	detail := a.getdetails(env)
+	//detail := a.getdetails(env)
 	a.Data["json"] = detail
 	a.ServeJson()
 
@@ -459,7 +411,8 @@ func (a *AppController) Details() {
 	}
 	response := []*models.Detail{}
 	for _, v := range envs {
-		response = append(response, a.getdetails(v))
+		detail, _ := K8sBackend.Applications(v.Name).List()
+		response = append(response, detail)
 	}
 	a.Data["json"] = response
 	a.ServeJson()
@@ -470,7 +423,7 @@ func (a *AppController) Details() {
 
 // @router /restartApp [post]
 func (a *AppController) RestartApp() {
-	namespace := "default"
+	//namespace := "default"
 	req := map[string]string{}
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &req)
 	//fmt.Println(deployReq)
@@ -485,42 +438,12 @@ func (a *AppController) RestartApp() {
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+"request not has appName "+`"}`, 406)
 		return
 	}
-	appName := req["appName"]
+	//appName := req["appName"]
 	//appName := app.Name + "-" + app.Version
-	appName = strings.ToLower(appName)
-	appName = strings.Replace(appName, ".", "", -1)
-	url := "http://" + models.KubernetesIp + ":8080/api/v1/namespaces/" + namespace + "/replicationcontrollers/" + appName
-	rsp, _ := http.Get(url)
-	var rc models.ReplicationController
-	body, _ := ioutil.ReadAll(rsp.Body)
-	err = json.Unmarshal(body, &rc)
-	fmt.Println(string(body))
+	err = K8sBackend.Applications(req["envName"]).Restart(req["appName"])
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
-		return
-	}
-	replicas := rc.Spec.Replicas
-	rc.Spec.Replicas = 0
-	body, _ = json.Marshal(rc)
-	status, result := lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1", []string{"namespaces", namespace, "replicationcontrollers", rc.ObjectMeta.Name}, body)
-	fmt.Println(status)
-	if status != 200 {
-		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
-		a.Ctx.ResponseWriter.WriteHeader(406)
-		fmt.Fprintln(a.Ctx.ResponseWriter, result)
-		return
-	}
-	body, _ = json.Marshal(result)
-	json.Unmarshal(body, &rc)
-	rc.Spec.Replicas = replicas
-	body, _ = json.Marshal(rc)
-	status, result = lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1", []string{"namespaces", namespace, "replicationcontrollers", rc.ObjectMeta.Name}, body)
-	fmt.Println(status)
-	if status != 200 {
-		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
-		a.Ctx.ResponseWriter.WriteHeader(406)
-		fmt.Fprintln(a.Ctx.ResponseWriter, result)
 		return
 	}
 	a.Data["json"] = map[string]string{"msg": "SUCCESS"}
@@ -560,166 +483,6 @@ func (a *AppController) DeleteEnv() {
 	a.ServeJson()
 }
 
-// @Title create app
-// @Description  create app
-
-// @router /create [post]
-func (a *AppController) Create() {
-	deployReq := models.AppCreateRequest{}
-	err := json.Unmarshal(a.Ctx.Input.RequestBody, &deployReq)
-	fmt.Println(deployReq)
-	if err != nil {
-		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
-		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
-		return
-	}
-	err = deployReq.Validate()
-	if err != nil {
-		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
-		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
-		return
-	}
-	service, err := a.CreateApp(&deployReq)
-	if err != nil {
-		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
-		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
-		return
-	}
-	a.Data["json"] = service
-	a.ServeJson()
-}
-func (a *AppController) CreateApp(app *models.AppCreateRequest) (*models.Service, error) {
-	//var result = map[string]interface{}{}
-	namespace := "default"
-	err := app.Validate()
-	if err != nil {
-		return nil, err
-	}
-	containerports := []models.ContainerPort{}
-	for _, v := range app.ContainerPort {
-		containerports = append(containerports, models.ContainerPort{
-			ContainerPort: v.Port, //
-			Protocol:      models.Protocol(v.Protocol),
-		})
-	}
-	volumemount := []models.VolumeMount{}
-	for _, v := range app.Volumes {
-		volumemount = append(volumemount, models.VolumeMount{
-			Name:      v.Name,
-			MountPath: "/usr/local/tomcat/webapps/" + path.Base(v.VolumeSource.HostPath.Path),
-		})
-	}
-	name := app.Name + "-" + app.Version
-	name = strings.ToLower(name)
-	name = strings.Replace(name, ".", "", -1)
-	containers := []models.Container{
-		models.Container{
-			Name:         name,
-			Image:        app.Containerimage,
-			Ports:        containerports,
-			VolumeMounts: volumemount,
-		},
-	}
-	//var nodeSelector = map[string]string{}
-	//if app.Runlocal {
-	//	nodeSelector["namespace"] = namespace
-	//} else {
-	//	nodeSelector["ip"] = strings.Split(a.Ctx.Request.RemoteAddr, ":")[0]
-	//}
-
-	var rc = &models.ReplicationController{
-		TypeMeta: models.TypeMeta{
-			Kind:       "ReplicationController",
-			APIVersion: "v1",
-		},
-		ObjectMeta: models.ObjectMeta{
-			Name:   name,
-			Labels: map[string]string{"env": app.Name, "name": app.Name + "-" + app.Version},
-		},
-		Spec: models.ReplicationControllerSpec{
-			Replicas: app.Replicas,
-			Selector: map[string]string{"env": app.Name, "name": app.Name + "-" + app.Version},
-			Template: &models.PodTemplateSpec{
-				ObjectMeta: models.ObjectMeta{
-					Labels: map[string]string{"env": app.Name, "name": app.Name + "-" + app.Version},
-				},
-				Spec: models.PodSpec{
-					Containers: containers,
-					Volumes:    app.Volumes,
-				},
-			},
-		},
-	}
-	body, _ := json.Marshal(rc)
-	status, result := lib.Sendapi("POST", models.KubernetesIp, "8080", "v1", []string{"namespaces", namespace, "replicationcontrollers"}, body)
-	responsebody, _ := json.Marshal(result)
-	if status != 201 {
-		//fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
-		return nil, models.ErrResponse{Response: string(responsebody)}
-	}
-	//result["RC"]=
-	var Ports = []models.ServicePort{}
-	for k, v := range app.Ports {
-		Ports = append(Ports, models.ServicePort{
-			Name:     "default" + strconv.Itoa(k),
-			Port:     v.Port,
-			Protocol: models.Protocol(v.Protocol),
-		})
-	}
-	var service = models.Service{
-		TypeMeta: models.TypeMeta{
-			Kind:       "Service",
-			APIVersion: "v1",
-		},
-		ObjectMeta: models.ObjectMeta{
-			Name:   name,
-			Labels: map[string]string{"env": app.Name, "name": app.Name + "-" + app.Version},
-		},
-		Spec: models.ServiceSpec{
-			Selector: map[string]string{"env": app.Name, "name": app.Name + "-" + app.Version},
-			Ports:    Ports,
-		},
-	}
-	for k, v := range app.Ports {
-		targetPort := v.TargetPort
-		if targetPort == 0 {
-			if k < len(app.ContainerPort) {
-				targetPort = app.ContainerPort[k].Port
-			}
-		}
-		if targetPort != 0 {
-			service.Spec.Ports[k].TargetPort = targetPort
-		} else {
-			service.Spec.Ports[k].TargetPort = v.Port
-		}
-	}
-	if len(app.PublicIPs) != 0 {
-		service.Spec.DeprecatedPublicIPs = app.PublicIPs
-	}
-	body, _ = json.Marshal(service)
-	fmt.Println(string(body))
-	status, result = lib.Sendapi("POST", models.KubernetesIp, "8080", "v1", []string{"namespaces", namespace, "services"}, body)
-	responsebody, _ = json.Marshal(result)
-	if status != 201 {
-		return nil, models.ErrResponse{Response: string(responsebody)}
-	}
-
-	_, exist := models.Appinfo[namespace]
-	if !exist {
-		models.Appinfo[namespace] = models.NamespaceInfo{}
-	}
-	_, exist = models.Appinfo[namespace][app.Name]
-	if !exist {
-		models.Appinfo[namespace][app.Name] = &models.AppMetaInfo{
-			Name:     app.Name,
-			Replicas: app.Replicas,
-			Status:   1,
-		}
-	}
-	json.Unmarshal(responsebody, &service)
-	return &service, nil
-}
-
 // @Title ScaleApp
 // @Description Scale app
 // @Param       namespaces      path    string  true            "The key for namespaces"
@@ -729,40 +492,22 @@ func (a *AppController) CreateApp(app *models.AppCreateRequest) (*models.Service
 // @Failure 403 body is empty
 // @router /scaleApp [put]
 func (a *AppController) Scale() {
-	namespace := "default"
+	//namespace := "default"
 
 	var appScale models.AppScale
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &appScale)
 
 	fmt.Println(appScale.Num)
 	if err != nil {
-		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		a.Ctx.ResponseWriter.WriteHeader(406)
-		fmt.Fprintln(a.Ctx.ResponseWriter, err)
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
-	appName := appScale.Name
-	//appName := app.Name + "-" + app.Version
-	appName = strings.ToLower(appName)
-	appName = strings.Replace(appName, ".", "", -1)
-	url := "http://" + models.KubernetesIp + ":8080/api/v1/namespaces/" + namespace + "/replicationcontrollers/" + appName
-
-	rsp, _ := http.Get(url)
-	body, _ := ioutil.ReadAll(rsp.Body)
-	fmt.Println(string(body))
-	var rc models.ReplicationController
-
-	json.Unmarshal(body, &rc)
-	rc.Spec.Replicas, _ = strconv.Atoi(appScale.Num)
-
-	body, _ = json.Marshal(rc)
-	fmt.Println(string(body))
-	status, result := lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1", []string{"namespaces", namespace, "replicationcontrollers", appName}, body)
-	fmt.Println(status)
-	if status != 200 {
-		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		a.Ctx.ResponseWriter.WriteHeader(406)
-		fmt.Fprintln(a.Ctx.ResponseWriter, result)
+	replicas, _ := strconv.Atoi(appScale.Num)
+	err = K8sBackend.Applications(appScale.EnvName).Update(appScale.Name, replicas)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
 	a.Data["json"] = map[string]string{"msg": "SUCCESS"}

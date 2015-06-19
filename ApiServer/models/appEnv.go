@@ -1,7 +1,7 @@
 package models
 
 import (
-	"K8APITransform/ApiServer/backend"
+	//"K8APITransform/ApiServer/backend"
 	"encoding/json"
 )
 
@@ -44,7 +44,7 @@ func AddAppEnv(env *AppEnv) error {
 	if err != nil {
 		return err
 	}
-	err = backend.IdPools.CreateIdPool(env.Name)
+	err = IdPools.CreateIdPool(env.Name)
 	if err != nil {
 		return err
 	}
