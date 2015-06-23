@@ -54,7 +54,7 @@ func (a *applications) Create(app AppCreateRequest) (*Detail, error) {
 	labels := map[string]string{"env": a.env, "name": a.env + "-" + app.Name + "-" + app.Version}
 	containers := []api.Container{
 		api.Container{
-			Name:  id,
+			Name:  a.env + "-" + id,
 			Image: app.Containerimage,
 			Ports: containerports,
 		},
@@ -65,7 +65,7 @@ func (a *applications) Create(app AppCreateRequest) (*Detail, error) {
 			APIVersion: "v1",
 		},
 		ObjectMeta: api.ObjectMeta{
-			Name:   id,
+			Name:   a.env + "-" + id,
 			Labels: labels,
 		},
 		Spec: api.ReplicationControllerSpec{

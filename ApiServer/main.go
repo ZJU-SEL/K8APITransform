@@ -18,7 +18,7 @@ func main() {
 	serverKey := beego.AppConfig.String("serverKey")
 	rootCrt := beego.AppConfig.String("rootCrt")
 	//fmt.Println("k8sip is ", models.KubernetesIp)
-	controllers.K8sBackend, _ = models.NewBackend(models.KubernetesIp, "v1beta3")
+	controllers.K8sBackend, _ = models.NewBackend(models.KubernetesIp+":8080", "v1beta3")
 	Client, err := etcd.NewTLSClient(machines, serverCrt, serverKey, rootCrt)
 	if err != nil {
 		fmt.Println(err.Error())

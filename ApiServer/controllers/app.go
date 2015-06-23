@@ -150,11 +150,11 @@ func (a *AppController) Upload() {
 	date = date[0 : len(date)-4]
 	//todo :use regx
 	app_part := string(date)
-	appName = app_part + "-" + version + ".war"
+	appName_tmp := app_part + "-" + version + ".war"
 
 	username := "cxy"
 	//uploaddir := "applications/" + username + "/" + appName + "-" + version + "_deploy/"
-	uploaddir := "applications/" + username + "/" + appName + "_deploy/"
+	uploaddir := "applications/" + username + "/" + appName_tmp + "_deploy/"
 	Fti.Createdir(uploaddir)
 	//version := a.GetString("version")
 
@@ -232,6 +232,7 @@ func (a *AppController) Deploy() {
 		}
 
 	}
+	warName := uploadfilename
 	newimage_name_temp := []byte(uploadfilename)
 	newimage_name := string(newimage_name_temp[0 : len(newimage_name_temp)-4])
 	//newimage_name := strings.Split(newimage_part, ".")[0]
@@ -251,7 +252,7 @@ func (a *AppController) Deploy() {
 	baseimage := "jre7" + "-" + "tomcat7"
 	//baseimage = env.JdkV + "-" + env.TomcatV
 	//baseimage := "jre" + strconv(env.JdkV) + "-" + "tomcat" + strconv(env.TomcatV)
-	newimage, err = Fti.Wartoimage(dockerdeamon, imageprefix, username, baseimage, newimage)
+	newimage, err = Fti.Wartoimage(dockerdeamon, imageprefix, username, baseimage, newimage, warName)
 
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
