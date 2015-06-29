@@ -186,7 +186,7 @@ func Systemexec(s string) {
 	}
 }
 
-func Createdockerfile(username string, baseimage string, newimage string) error {
+func Createdockerfile(username string, baseimage string, newimage string, warName string) error {
 	targetDocker := applications + "/" + username + "/" + newimage + "_deploy" + "/" + "Dockerfile"
 	fmt.Println("tardocker:", targetDocker)
 	_, err := os.Stat(targetDocker)
@@ -216,7 +216,7 @@ func Createdockerfile(username string, baseimage string, newimage string) error 
 
 	Systemexec(modifybase)
 	//modifynew := `sed -i "s/newimage/` + username + "/" + newimage + "_deploy /" + `/g" ` + targetDocker
-	modifynew := `sed -i "s/newimage/` + applications + `\/cxy\/` + newimage + `_deploy\/` + newimage + ` /g" ` + targetDocker
+	modifynew := `sed -i "s/newimage/` + applications + `\/cxy\/` + newimage + `_deploy\/` + warName + ` /g" ` + targetDocker
 
 	//newimage + "_deploy" + "/"
 
@@ -227,7 +227,7 @@ func Createdockerfile(username string, baseimage string, newimage string) error 
 
 //the image will be covered if the image already exist
 //dockerdeamon, username,imageprefix, baseimage, newimage
-func Wartoimage(dockerdeamon string, imageprefix string, username string, baseimage string, newimage string) (string, error) {
+func Wartoimage(dockerdeamon string, imageprefix string, username string, baseimage string, newimage string, warName string) (string, error) {
 	// put the war file into the _deploy dir
 
 	sourcedir := applications + "/" + username + "/" + newimage + "_deploy"
@@ -246,7 +246,7 @@ func Wartoimage(dockerdeamon string, imageprefix string, username string, baseim
 
 	//create the dockerfile according to the baseimage in the baseimage_tar
 	//the template is located in the dir username
-	err := Createdockerfile(username, baseimage, newimage)
+	err := Createdockerfile(username, baseimage, newimage, warName)
 	if err != nil {
 		return "", err
 	}
@@ -302,6 +302,7 @@ func Wartoimage(dockerdeamon string, imageprefix string, username string, baseim
 	fmt.Println("Registry:", imageprefix)
 
 	err = client.PushImage(pushopts, auth)
+
 	if err != nil {
 		return "", err
 	}

@@ -9,15 +9,18 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
+	//"time"
 	//"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	"github.com/astaxie/beego"
 	"io"
 	"net/http"
 	"os"
-
 	"path"
 	//"time"
 )
+
+//store the relationship of podip and service ip
+var serviceipmap = make(map[string]string)
 
 // Operations about App
 type AppController struct {
@@ -147,11 +150,11 @@ func (a *AppController) Upload() {
 	date = date[0 : len(date)-4]
 	//todo :use regx
 	app_part := string(date)
-	appName = app_part + "-" + version + ".war"
+	appNameAll := app_part + "-" + version + ".war"
 
 	username := "cxy"
 	//uploaddir := "applications/" + username + "/" + appName + "-" + version + "_deploy/"
-	uploaddir := "applications/" + username + "/" + appName + "_deploy/"
+	uploaddir := "applications/" + username + "/" + appNameAll + "_deploy/"
 	Fti.Createdir(uploaddir)
 	//version := a.GetString("version")
 
@@ -187,18 +190,21 @@ func (a *AppController) Deploy() {
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &deployReq)
 	fmt.Println(deployReq)
 	if err != nil {
+		fmt.Println(err.Error)
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
 	err = deployReq.Validate()
 	if err != nil {
+		fmt.Println(err.Error)
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
 	env, err := models.GetAppEnv(deployReq.EnvName)
 	if err != nil {
+		fmt.Println(err.Error)
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
@@ -230,6 +236,7 @@ func (a *AppController) Deploy() {
 		}
 
 	}
+	warName := uploadfilename
 	newimage_name_temp := []byte(uploadfilename)
 	newimage_name := string(newimage_name_temp[0 : len(newimage_name_temp)-4])
 	//newimage_name := strings.Split(newimage_part, ".")[0]
@@ -239,19 +246,22 @@ func (a *AppController) Deploy() {
 
 	fmt.Println("newimagename:", newimage)
 	//deployReq imagename string, uploaddir string) error
-	dockerdeamon := "unix:///var/run/docker.sock"
-	//dockerdeamon := "http://10.211.55.10:2376"
+	//dockerdeamon := "unix:///var/run/docker.sock"
+	dockerdeamon := "http://cxyreg:2376"
 
 	imageprefix := username + "reg:5000"
 
 	//deployReq imagename string, uploaddir string) error
 	//dockerdeamon := "unix:///var/run/docker.sock"
-	baseimage := "jre7" + "-" + "tomcat7"
+	//baseimage := "jre7" + "-" + "tomcat7"
+	//baseimage := "apm-jre7-tomcat7:v1"
+	baseimage := `cxyreg:5000\/apm-jre7-tomcat7:v2`
 	//baseimage = env.JdkV + "-" + env.TomcatV
 	//baseimage := "jre" + strconv(env.JdkV) + "-" + "tomcat" + strconv(env.TomcatV)
-	newimage, err = Fti.Wartoimage(dockerdeamon, imageprefix, username, baseimage, newimage)
+	newimage, err = Fti.Wartoimage(dockerdeamon, imageprefix, username, baseimage, newimage, warName)
 
 	if err != nil {
+		fmt.Println(err.Error())
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
@@ -286,6 +296,7 @@ func (a *AppController) Deploy() {
 	}
 	service, err := a.CreateApp(app)
 	if err != nil {
+		fmt.Println(err.Error)
 		if !strings.Contains(err.Error(), "replicationControllers") {
 			a.deleteapp(app.Name + "-" + app.Version)
 		}
@@ -297,6 +308,7 @@ func (a *AppController) Deploy() {
 	env.Used++
 	err = models.UpdateAppEnv(env.Name, env)
 	if err != nil {
+		fmt.Println(err.Error)
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
@@ -348,8 +360,51 @@ func (a *AppController) Deploy() {
 		OriginalName: deployReq.WarName,
 	})
 	detail.Children = append(detail.Children, tomcat)
+	//delay := time.NewTimer()
+	//time := time.NewTicker(2 * time.Minute)
+	//var delayok = make(chan int)
+	//time := 0
+	//go func() {
+	fmt.Println("waing pods ip allocation....")
+	for {
+
+		sename := service.ObjectMeta.Labels["name"]
+		podslist, err := a.Podip(sename)
+		if err != nil {
+			fmt.Println(err.Error())
+			a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+			http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+			//delayok <- 0
+			return
+		}
+		if len(podslist) == 0 {
+			//time++
+			continue
+		} else {
+			fmt.Println("allocation ok ......")
+			//delayok <- 1
+			break
+		}
+
+	}
 	a.Data["json"] = detail
 	a.ServeJson()
+	//}()
+	//select {
+	//case <-time.C:
+	//	a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+	//	http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+"deploy error"+`"}`, 406)
+	//	return
+	//	break
+	//case ok := <-delayok:
+	//	if ok == 1 {
+	//		a.Data["json"] = detail
+	//		a.ServeJson()
+	//	}
+	//	break
+	//}
+	//fmt.Println("waing pods ip allocation....")
+
 }
 
 // @Title get partDetails
@@ -560,6 +615,97 @@ func (a *AppController) DeleteEnv() {
 	a.Data["json"] = map[string]string{"msg": "SUCCESS"}
 	a.ServeJson()
 }
+
+// @Title getpodsip
+// @Description getpodsip
+// @router /podsip/:sename [get]
+func (a *AppController) Getpodsip() {
+	sename := a.Ctx.Input.Param(":sename")
+	fmt.Println(sename)
+	iplist, err := a.Podip(sename)
+	if err != nil {
+		fmt.Println(err.Error())
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	a.Data["json"] = iplist
+	a.ServeJson()
+
+}
+
+// @Title getservice
+// @Description getservice
+// @router /serviceip/:podip [get]
+func (a *AppController) Getseip() {
+	//get
+
+	podip := a.Ctx.Input.Param(":podip")
+	//todo:watch the etcd
+	seip := serviceipmap[podip]
+	a.Data["json"] = seip
+	a.ServeJson()
+}
+
+func (a *AppController) Podip(sename string) ([]string, error) {
+	namespace := "default"
+	//todo : get info from the sys dynamically
+	port := "8080"
+	url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/pods" + "?labelSelector=name%3D" + sename
+	//fmt.Println(url)
+	rsp, _ := http.Get(url)
+	body, _ := ioutil.ReadAll(rsp.Body)
+	var podlist models.PodList
+	json.Unmarshal(body, &podlist)
+	//fmt.Println(string(body))
+	var iplist []string
+	//var tmppodip = "null"
+	if len(podlist.Items) == 0 {
+		return iplist, nil
+	}
+	tmppodip := podlist.Items[0].Status.PodIP
+	//fmt.Println("tmppodip:", tmppodip)
+	if tmppodip == "" {
+		return iplist, nil
+	}
+	for _, pod := range podlist.Items {
+		podip := pod.Status.PodIP
+		iplist = append(iplist, podip+":"+port)
+	}
+
+	//----------------------------------------------------
+	//service ip
+	url = "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/services" + "?labelSelector=name%3D" + sename
+	rsp, _ = http.Get(url)
+	body, _ = ioutil.ReadAll(rsp.Body)
+	var servicelist models.ServiceList
+	json.Unmarshal(body, &servicelist)
+
+	service := servicelist.Items[0]
+
+	serviceip := service.Spec.PortalIP + ":" + port
+	//fmt.Println("servicePortalIP:", serviceip)
+	//servicename := service.ObjectMeta.Labels["name"]
+	//range the podip and store it
+	// pod could not be allocated the ip immediately watch etcd???
+	//question here could not get the pod ip?????
+	//time.Sleep(time.Second * 5)
+	fmt.Println("podlist:", iplist)
+	for _, podip := range iplist {
+		serviceipmap[podip] = serviceip
+		//store the info into etcd
+		models.AddPodtoSe(podip, serviceip)
+		//return nil, err
+
+	}
+
+	fmt.Println("servicemap:", serviceipmap)
+	//----------------------------------------------------
+
+	return iplist, nil
+
+}
+
 func (a *AppController) CreateApp(app *models.AppCreateRequest) (*models.Service, error) {
 	//var result = map[string]interface{}{}
 	namespace := "default"

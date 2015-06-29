@@ -26,7 +26,6 @@ func (key AppEnv) Validate() error {
 			validationError = validationError.Append(ErrInvalidField{"Ports"})
 		}
 	*/
-
 	if key.Name == "" {
 		validationError = validationError.Append(ErrInvalidField{"Name"})
 	}
@@ -88,4 +87,40 @@ func UpdateAppEnv(envname string, env *AppEnv) error {
 		return err
 	}
 	return nil
+}
+
+func GetPodtoSe(podip string) (string, error) {
+	response, err := EtcdClient.Get("/potose/"+podip, false, false)
+	if err != nil {
+		return "", err
+	}
+
+	seip := response.Node.Value
+
+	return seip, nil
+}
+
+func UpdatePodtoSe(podip string, seip string) error {
+	_, err := EtcdClient.Update("/potose/"+podip, seip, 0)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func AddPodtoSe(podip string, seip string) error {
+
+	_, err := GetPodtoSe(podip)
+
+	if err != nil {
+		_, err := EtcdClient.Create("/potose/"+podip, seip, 0)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := UpdatePodtoSe(podip, seip)
+		return err
+	}
+	return nil
+
 }

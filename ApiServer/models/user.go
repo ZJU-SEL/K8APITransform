@@ -10,7 +10,8 @@ import (
 )
 
 var (
-	UserList   map[string]*User
+	UserList map[string]*User
+	//initialised in the main.go
 	EtcdClient *etcd.Client
 )
 
