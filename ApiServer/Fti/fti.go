@@ -3,15 +3,14 @@ package Fti
 import (
 	"archive/tar"
 	"compress/gzip"
-	"fmt"
 	"io"
+	"log"
 	//	"io/ioutil"
 	"github.com/fsouza/go-dockerclient"
 	"os"
 	//"reflect"
 	//"bytes"
 	"bufio"
-	"log"
 	"os/exec"
 	"strings"
 )
@@ -23,9 +22,9 @@ const (
 func Filecompress(tw *tar.Writer, dir string, fi os.FileInfo) error {
 
 	//打开文件 open当中是 目录名称/文件名称 构成的组合
-	fmt.Println(dir + fi.Name())
+	log.Println(dir + fi.Name())
 	fr, err := os.Open(dir + fi.Name())
-	fmt.Println(fr.Name())
+	log.Println(fr.Name())
 	if err != nil {
 		return err
 	}
@@ -43,7 +42,7 @@ func Filecompress(tw *tar.Writer, dir string, fi os.FileInfo) error {
 		return err
 	}
 	//打印文件名称
-	fmt.Println("add the file: " + fi.Name())
+	log.Println("add the file: " + fi.Name())
 	return nil
 
 }
@@ -52,8 +51,8 @@ func Dircompress(tw *tar.Writer, dir string) error {
 
 	//打开文件夹
 	dirhandle, err := os.Open(dir)
-	//fmt.Println(dir.Name())
-	//fmt.Println(reflect.TypeOf(dir))
+	//log.Println(dir.Name())
+	//log.Println(reflect.TypeOf(dir))
 	if err != nil {
 		return err
 	}
@@ -62,7 +61,7 @@ func Dircompress(tw *tar.Writer, dir string) error {
 	//fis, err := ioutil.ReadDir(dir)
 	fis, err := dirhandle.Readdir(0)
 	//fis的类型为 []os.FileInfo
-	//fmt.Println(reflect.TypeOf(fis))
+	//log.Println(reflect.TypeOf(fis))
 	if err != nil {
 		return err
 	}
@@ -84,8 +83,8 @@ func Dircompress(tw *tar.Writer, dir string) error {
 			//			}
 
 			newname := dir + fi.Name()
-			fmt.Println("using dir")
-			fmt.Println(newname)
+			log.Println("using dir")
+			log.Println(newname)
 			//这个样直接continue就将所有文件写入到了一起 没有层级结构了
 			//Filecompress(tw, dir, fi)
 			err = Dircompress(tw, newname+"/")
@@ -110,12 +109,12 @@ func Dirtotar(sourcedir string, tardir string, newimage string) error {
 	//file write 在tardir目录下创建
 	_, err := os.Stat(sourcedir)
 	if err != nil {
-		fmt.Println("please create the deploy dir")
+		log.Println("please create the deploy dir")
 		return err
 	}
 	fw, err := os.Create(tardir + "/" + newimage + ".tar.gz")
 	//type of fw is *os.File
-	//	fmt.Println(reflect.TypeOf(fw))
+	//	log.Println(reflect.TypeOf(fw))
 	if err != nil {
 		return err
 
@@ -129,7 +128,7 @@ func Dirtotar(sourcedir string, tardir string, newimage string) error {
 	//tar write
 	tw := tar.NewWriter(gw)
 	defer tw.Close()
-	//	fmt.Println(reflect.TypeOf(tw))
+	//	log.Println(reflect.TypeOf(tw))
 	//add the deployments contens
 	//Dircompress(tw, "deployments/")
 	err = Dircompress(tw, sourcedir+"/")
@@ -147,11 +146,11 @@ func Dirtotar(sourcedir string, tardir string, newimage string) error {
 	//	panic(err)
 
 	//}
-	//fmt.Println(reflect.TypeOf(os.FileInfo(fileinfo)))
+	//log.Println(reflect.TypeOf(os.FileInfo(fileinfo)))
 	//dockerfile要单独放在根目录下 和其他archivefile并列
 	//Filecompress(tw, "", fileinfo)
 
-	fmt.Println("tar.gz packaging OK")
+	log.Println("tar.gz packaging OK")
 	return nil
 
 }
@@ -160,14 +159,14 @@ func Dirtotar(sourcedir string, tardir string, newimage string) error {
 func SourceTar(filename string) *os.File {
 	//"tardir/deployments.tar.gz"
 	fw, _ := os.Open(filename)
-	//fmt.Println(reflect.TypeOf(fw))
+	//log.Println(reflect.TypeOf(fw))
 	return fw
 
 }
 
 func Systemexec(s string) {
 	cmd := exec.Command("/bin/sh", "-c", s)
-	fmt.Println(s)
+	log.Println(s)
 	out, err := cmd.StdoutPipe()
 	go func() {
 		o := bufio.NewReader(out)
@@ -176,7 +175,7 @@ func Systemexec(s string) {
 			if err == io.EOF {
 				break
 			} else {
-				fmt.Println(string(line))
+				log.Println(string(line))
 			}
 		}
 	}()
@@ -188,7 +187,7 @@ func Systemexec(s string) {
 
 func Createdockerfile(username string, baseimage string, newimage string, warName string) error {
 	targetDocker := applications + "/" + username + "/" + newimage + "_deploy" + "/" + "Dockerfile"
-	fmt.Println("tardocker:", targetDocker)
+	log.Println("tardocker:", targetDocker)
 	_, err := os.Stat(targetDocker)
 	if err == nil {
 		os.Remove(targetDocker)
@@ -238,7 +237,7 @@ func Wartoimage(dockerdeamon string, imageprefix string, username string, baseim
 	//todo: add a rest api which could receive the tar file and put the war file into the _deploy dir
 	//a war->tar->war add scripts（such as dockerfile） -> tar -> image
 	//Createdir(deploydir)
-	fmt.Println(tardir)
+	log.Println(tardir)
 	Createdir(tardir)
 	defer os.RemoveAll(tardir)
 	//delete the temp dir at last
@@ -259,12 +258,12 @@ func Wartoimage(dockerdeamon string, imageprefix string, username string, baseim
 	//using go-docker client
 	endpoint := dockerdeamon
 	client, _ := docker.NewClient(endpoint)
-	//fmt.Println(client)
+	//log.Println(client)
 	filename := tardir + "/" + newimage + ".tar.gz"
 	//filename := "tardir/Dockerfile"
 	tarStream := SourceTar(filename)
 	defer tarStream.Close()
-	fmt.Println(tarStream)
+	log.Println(tarStream)
 
 	//dockerhub的认证信息
 	auth := docker.AuthConfiguration{
@@ -297,9 +296,9 @@ func Wartoimage(dockerdeamon string, imageprefix string, username string, baseim
 		//OutputStream: os.Stdout,
 	}
 
-	fmt.Println("Name:", newimage)
+	log.Println("Name:", newimage)
 
-	fmt.Println("Registry:", imageprefix)
+	log.Println("Registry:", imageprefix)
 
 	err = client.PushImage(pushopts, auth)
 
@@ -328,7 +327,7 @@ func Createdir(imagename string) (string, error) {
 	exist := Exist(imagename)
 
 	if exist {
-		fmt.Println("the folder exist , remove it")
+		log.Println("the folder exist , remove it")
 		Cleandir(imagename)
 	}
 	dirname := imagename
@@ -336,7 +335,7 @@ func Createdir(imagename string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	fmt.Println("create succesful: " + dirname)
+	log.Println("create succesful: " + dirname)
 	return dirname, nil
 
 }
@@ -346,8 +345,8 @@ func Cleandir(dirname string) {
 
 	//打开文件夹
 	dirhandle, err := os.Open(dirname)
-	//fmt.Println(dirname)
-	//fmt.Println(reflect.TypeOf(dir))
+	//log.Println(dirname)
+	//log.Println(reflect.TypeOf(dir))
 	if err != nil {
 		panic(nil)
 	}
@@ -356,7 +355,7 @@ func Cleandir(dirname string) {
 	//fis, err := ioutil.ReadDir(dir)
 	fis, err := dirhandle.Readdir(0)
 	//fis的类型为 []os.FileInfo
-	//fmt.Println(reflect.TypeOf(fis))
+	//log.Println(reflect.TypeOf(fis))
 	if err != nil {
 		panic(err)
 	}
@@ -366,8 +365,8 @@ func Cleandir(dirname string) {
 	for _, fi := range fis {
 		if fi.IsDir() {
 			newname := dirname + "/" + fi.Name()
-			//fmt.Println("using dir")
-			//fmt.Println(newname)
+			//log.Println("using dir")
+			//log.Println(newname)
 			//这个样直接continue就将所有文件写入到了一起 没有层级结构了
 			//Filecompress(tw, dir, fi)
 			Cleandir(newname)
@@ -375,18 +374,18 @@ func Cleandir(dirname string) {
 		} else {
 			//如果是普通文件 直接写入 dir 后面已经有了 /
 			filename := dirname + "/" + fi.Name()
-			fmt.Println(filename)
+			log.Println(filename)
 			err := os.Remove(filename)
 			if err != nil {
 				panic(err)
 			}
-			fmt.Println("delete " + filename)
+			log.Println("delete " + filename)
 		}
 
 	}
 	//递归结束 删除当前文件夹
 	err = os.Remove(dirname)
-	fmt.Println("delete " + dirname)
+	log.Println("delete " + dirname)
 	if err != nil {
 		panic(err)
 	}

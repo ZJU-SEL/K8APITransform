@@ -9,14 +9,14 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
-	//"time"
 	//"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	"github.com/astaxie/beego"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path"
-	//"time"
+	"time"
 )
 
 //store the relationship of podip and service ip
@@ -88,8 +88,8 @@ func (a *AppController) CreateEnv() {
 func (a *AppController) Getuploadwars() {
 	username := "cxy"
 	dirhandle, err := os.Open("applications/" + username)
-	//fmt.Println(dirname)
-	//fmt.Println(reflect.TypeOf(dirhandle))
+	//log.Println(dirname)
+	//log.Println(reflect.TypeOf(dirhandle))
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
@@ -100,7 +100,7 @@ func (a *AppController) Getuploadwars() {
 	//fis, err := ioutil.ReadDir(dir)
 	fis, err := dirhandle.Readdir(0)
 	//fis的类型为 []os.FileInfo
-	//fmt.Println(reflect.TypeOf(fis))
+	//log.Println(reflect.TypeOf(fis))
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
@@ -113,7 +113,7 @@ func (a *AppController) Getuploadwars() {
 
 		//如果是普通文件 直接写入 dir 后面已经有了/
 		filename := fi.Name()
-		fmt.Println(filename)
+		log.Println(filename)
 		fileinfo := strings.Split(filename, "_")
 		if fileinfo[len(fileinfo)-1] == "deploy" {
 			filename = strings.TrimRight(filename, "_deploy")
@@ -145,7 +145,7 @@ func (a *AppController) Upload() {
 	file, _, err := a.GetFile("filePath")
 	version := a.GetString("version")
 	appName := a.GetString("appName")
-	fmt.Println(version)
+	log.Println(version)
 	date := []byte(appName)
 	date = date[0 : len(date)-4]
 	//todo :use regx
@@ -158,14 +158,14 @@ func (a *AppController) Upload() {
 	Fti.Createdir(uploaddir)
 	//version := a.GetString("version")
 
-	fmt.Println(version)
+	log.Println(version)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
 	//f, err := os.OpenFile("applications/"+handle.Filename+version, os.O_WRONLY|os.O_CREATE, 0666)
-	fmt.Println(uploaddir)
+	log.Println(uploaddir)
 	//f, err := os.OpenFile(uploaddir+appName+"-"+version, os.O_WRONLY|os.O_CREATE, 0666)
 	f, err := os.OpenFile(uploaddir+appName, os.O_WRONLY|os.O_CREATE, 0666)
 	io.Copy(f, file)
@@ -188,23 +188,23 @@ func (a *AppController) Deploy() {
 	namespace := "default"
 	deployReq := models.DeployRequest{}
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &deployReq)
-	fmt.Println(deployReq)
+	log.Println(deployReq)
 	if err != nil {
-		fmt.Println(err.Error)
+		log.Println(err.Error)
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
 	err = deployReq.Validate()
 	if err != nil {
-		fmt.Println(err.Error)
+		log.Println(err.Error)
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
 	env, err := models.GetAppEnv(deployReq.EnvName)
 	if err != nil {
-		fmt.Println(err.Error)
+		log.Println(err.Error)
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
@@ -224,9 +224,9 @@ func (a *AppController) Deploy() {
 	//newimage_part := strings.Split(uploadfilename, "-")[0]
 	if deployReq.IsGreyUpdating == "0" {
 		//namespace := "default"
-		fmt.Println("delete all apps before")
+		log.Println("delete all apps before")
 		url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/services" + "?labelSelector=env%3D" + deployReq.EnvName
-		//fmt.Println(url)
+		//log.Println(url)
 		rsp, _ := http.Get(url)
 		var serviceslist models.ServiceList
 		body, _ := ioutil.ReadAll(rsp.Body)
@@ -244,7 +244,7 @@ func (a *AppController) Deploy() {
 	newimage_version := deployReq.AppVersion
 	newimage := newimage_name + "-" + newimage_version + ".war"
 
-	fmt.Println("newimagename:", newimage)
+	log.Println("newimagename:", newimage)
 	//deployReq imagename string, uploaddir string) error
 	//dockerdeamon := "unix:///var/run/docker.sock"
 	dockerdeamon := "http://cxyreg:2376"
@@ -261,13 +261,13 @@ func (a *AppController) Deploy() {
 	newimage, err = Fti.Wartoimage(dockerdeamon, imageprefix, username, baseimage, newimage, warName)
 
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println(err.Error())
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
 	imagename := imageprefix + "/" + newimage
-	fmt.Println("newimage:", imagename)
+	log.Println("newimage:", imagename)
 
 	//imagename := "7-jre-customize"
 	//wartoimage
@@ -296,7 +296,7 @@ func (a *AppController) Deploy() {
 	}
 	service, err := a.CreateApp(app)
 	if err != nil {
-		fmt.Println(err.Error)
+		log.Println(err.Error)
 		if !strings.Contains(err.Error(), "replicationControllers") {
 			a.deleteapp(app.Name + "-" + app.Version)
 		}
@@ -308,18 +308,18 @@ func (a *AppController) Deploy() {
 	env.Used++
 	err = models.UpdateAppEnv(env.Name, env)
 	if err != nil {
-		fmt.Println(err.Error)
+		log.Println(err.Error)
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
 	url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/pods" + "?labelSelector=name%3D" + app.Name + "-" + app.Version
-	//fmt.Println(url)
+	//log.Println(url)
 	rsp, _ := http.Get(url)
 	var podslist models.PodList
 	body, _ := ioutil.ReadAll(rsp.Body)
 	json.Unmarshal(body, &podslist)
-	fmt.Println(string(body))
+	log.Println(string(body))
 	detail := &models.Detail{Name: env.Name, Status: 1, NodeType: 1, Context: []models.Detail{}, Children: []models.Detail{}}
 	detail.Children = append(detail.Children, models.Detail{
 		Name:     "Nginx",
@@ -360,50 +360,43 @@ func (a *AppController) Deploy() {
 		OriginalName: deployReq.WarName,
 	})
 	detail.Children = append(detail.Children, tomcat)
-	//delay := time.NewTimer()
-	//time := time.NewTicker(2 * time.Minute)
-	//var delayok = make(chan int)
-	//time := 0
-	//go func() {
-	fmt.Println("waing pods ip allocation....")
-	for {
 
-		sename := service.ObjectMeta.Labels["name"]
-		podslist, err := a.Podip(sename)
-		if err != nil {
-			fmt.Println(err.Error())
+	log.Println("waing pods ip allocation....")
+	//time.After will return a new channel every time attention to the position of time.After
+	t := time.After(time.Second * 10)
+A:
+	for {
+		select {
+		case <-t:
+			log.Println("time out to allocate ip")
+			//delete the se which deploy failed
 			a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
-			http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
-			//delayok <- 0
-			return
-		}
-		if len(podslist) == 0 {
-			//time++
-			continue
-		} else {
-			fmt.Println("allocation ok ......")
-			//delayok <- 1
-			break
+			http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+"deploy error : time out"+`"}`, 406)
+			break A
+		default:
+			//log.Println("logout:", <-timeout)
+			sename := service.ObjectMeta.Labels["name"]
+			podslist, err := a.Podip(sename)
+			if err != nil {
+				log.Println(err.Error())
+				a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+				http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+				//delayok <- 0
+				break A
+			}
+			if len(podslist) == 0 {
+				continue
+			} else {
+				log.Println("allocation ok ......")
+				//delayok <- 1
+				a.Data["json"] = detail
+				a.ServeJson()
+				break A
+			}
+
 		}
 
 	}
-	a.Data["json"] = detail
-	a.ServeJson()
-	//}()
-	//select {
-	//case <-time.C:
-	//	a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
-	//	http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+"deploy error"+`"}`, 406)
-	//	return
-	//	break
-	//case ok := <-delayok:
-	//	if ok == 1 {
-	//		a.Data["json"] = detail
-	//		a.ServeJson()
-	//	}
-	//	break
-	//}
-	//fmt.Println("waing pods ip allocation....")
 
 }
 
@@ -414,7 +407,7 @@ func (a *AppController) Deploy() {
 func (a *AppController) PartDetails() {
 	//a.ParseForm()
 	envName := a.GetString("envName")
-	fmt.Println(envName)
+	log.Println(envName)
 	env, err := models.GetAppEnv(envName)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
@@ -430,14 +423,14 @@ func (a *AppController) PartDetails() {
 func (a *AppController) getdetails(env *models.AppEnv) *models.Detail {
 	namespace := "default"
 	url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/services" + "?labelSelector=env%3D" + env.Name
-	//fmt.Println(url)
+	//log.Println(url)
 	rsp, _ := http.Get(url)
 	var serviceslist models.ServiceList
 	body, _ := ioutil.ReadAll(rsp.Body)
 	json.Unmarshal(body, &serviceslist)
 
 	url = "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/pods" + "?labelSelector=env%3D" + env.Name
-	//fmt.Println(url)
+	//log.Println(url)
 	rsp, _ = http.Get(url)
 	var podslist models.PodList
 	body, _ = ioutil.ReadAll(rsp.Body)
@@ -529,13 +522,13 @@ func (a *AppController) RestartApp() {
 	namespace := "default"
 	req := map[string]string{}
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &req)
-	//fmt.Println(deployReq)
+	//log.Println(deployReq)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
-	fmt.Println(req["appName"])
+	log.Println(req["appName"])
 	if _, exist := req["appName"]; exist == false {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+"request not has appName "+`"}`, 406)
@@ -550,7 +543,7 @@ func (a *AppController) RestartApp() {
 	var rc models.ReplicationController
 	body, _ := ioutil.ReadAll(rsp.Body)
 	err = json.Unmarshal(body, &rc)
-	fmt.Println(string(body))
+	log.Println(string(body))
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
@@ -560,7 +553,7 @@ func (a *AppController) RestartApp() {
 	rc.Spec.Replicas = 0
 	body, _ = json.Marshal(rc)
 	status, result := lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", rc.ObjectMeta.Name}, body)
-	fmt.Println(status)
+	log.Println(status)
 	if status != 200 {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		a.Ctx.ResponseWriter.WriteHeader(406)
@@ -572,7 +565,7 @@ func (a *AppController) RestartApp() {
 	rc.Spec.Replicas = replicas
 	body, _ = json.Marshal(rc)
 	status, result = lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", rc.ObjectMeta.Name}, body)
-	fmt.Println(status)
+	log.Println(status)
 	if status != 200 {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		a.Ctx.ResponseWriter.WriteHeader(406)
@@ -621,10 +614,10 @@ func (a *AppController) DeleteEnv() {
 // @router /podsip/:sename [get]
 func (a *AppController) Getpodsip() {
 	sename := a.Ctx.Input.Param(":sename")
-	fmt.Println(sename)
+	log.Println(sename)
 	iplist, err := a.Podip(sename)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println(err.Error())
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
@@ -637,14 +630,19 @@ func (a *AppController) Getpodsip() {
 // @Title getservice
 // @Description getservice
 // @router /serviceip/:podip [get]
-func (a *AppController) Getseip() {
+func (a *AppController) Getseip() error {
 	//get
-
 	podip := a.Ctx.Input.Param(":podip")
 	//todo:watch the etcd
-	seip := serviceipmap[podip]
+	//seip := serviceipmap[podip]
+	seip, err := models.GetPodtoSe(podip)
+	if err != nil {
+		return err
+	}
 	a.Data["json"] = seip
 	a.ServeJson()
+
+	return nil
 }
 
 func (a *AppController) Podip(sename string) ([]string, error) {
@@ -652,19 +650,19 @@ func (a *AppController) Podip(sename string) ([]string, error) {
 	//todo : get info from the sys dynamically
 	port := "8080"
 	url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/pods" + "?labelSelector=name%3D" + sename
-	//fmt.Println(url)
+	//log.Println(url)
 	rsp, _ := http.Get(url)
 	body, _ := ioutil.ReadAll(rsp.Body)
 	var podlist models.PodList
 	json.Unmarshal(body, &podlist)
-	//fmt.Println(string(body))
+	//log.Println(string(body))
 	var iplist []string
 	//var tmppodip = "null"
 	if len(podlist.Items) == 0 {
 		return iplist, nil
 	}
 	tmppodip := podlist.Items[0].Status.PodIP
-	//fmt.Println("tmppodip:", tmppodip)
+	//log.Println("tmppodip:", tmppodip)
 	if tmppodip == "" {
 		return iplist, nil
 	}
@@ -684,22 +682,24 @@ func (a *AppController) Podip(sename string) ([]string, error) {
 	service := servicelist.Items[0]
 
 	serviceip := service.Spec.PortalIP + ":" + port
-	//fmt.Println("servicePortalIP:", serviceip)
+	//log.Println("servicePortalIP:", serviceip)
 	//servicename := service.ObjectMeta.Labels["name"]
 	//range the podip and store it
 	// pod could not be allocated the ip immediately watch etcd???
 	//question here could not get the pod ip?????
 	//time.Sleep(time.Second * 5)
-	fmt.Println("podlist:", iplist)
+	log.Println("podlist:", iplist)
 	for _, podip := range iplist {
 		serviceipmap[podip] = serviceip
 		//store the info into etcd
-		models.AddPodtoSe(podip, serviceip)
+		err := models.AddPodtoSe(podip, serviceip)
 		//return nil, err
-
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	fmt.Println("servicemap:", serviceipmap)
+	log.Println("servicemap:", serviceipmap)
 	//----------------------------------------------------
 
 	return iplist, nil
@@ -772,7 +772,7 @@ func (a *AppController) CreateApp(app *models.AppCreateRequest) (*models.Service
 	status, result := lib.Sendapi("POST", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers"}, body)
 	responsebody, _ := json.Marshal(result)
 	if status != 201 {
-		//fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
+		//log.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
 		return nil, models.ErrResponse{Response: string(responsebody)}
 	}
 	//result["RC"]=
@@ -815,7 +815,7 @@ func (a *AppController) CreateApp(app *models.AppCreateRequest) (*models.Service
 		service.Spec.PublicIPs = app.PublicIPs
 	}
 	body, _ = json.Marshal(service)
-	fmt.Println(string(body))
+	log.Println(string(body))
 	status, result = lib.Sendapi("POST", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "services"}, body)
 	responsebody, _ = json.Marshal(result)
 	if status != 201 {
@@ -852,7 +852,7 @@ func (a *AppController) Scale() {
 	var appScale models.AppScale
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &appScale)
 
-	fmt.Println(appScale.Num)
+	log.Println(appScale.Num)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		a.Ctx.ResponseWriter.WriteHeader(406)
@@ -867,16 +867,16 @@ func (a *AppController) Scale() {
 
 	rsp, _ := http.Get(url)
 	body, _ := ioutil.ReadAll(rsp.Body)
-	fmt.Println(string(body))
+	log.Println(string(body))
 	var rc models.ReplicationController
 
 	json.Unmarshal(body, &rc)
 	rc.Spec.Replicas, _ = strconv.Atoi(appScale.Num)
 
 	body, _ = json.Marshal(rc)
-	fmt.Println(string(body))
+	log.Println(string(body))
 	status, result := lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", appName}, body)
-	fmt.Println(status)
+	log.Println(status)
 	if status != 200 {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		a.Ctx.ResponseWriter.WriteHeader(406)
@@ -904,7 +904,7 @@ func (a *AppController) DeleteApp() {
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
-	//fmt.Println(appScale.Num)
+	//log.Println(appScale.Num)
 
 	if _, exist := app["appName"]; exist == false {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
@@ -942,7 +942,7 @@ func (a *AppController) deleteapp(appName string) {
 //	if status != 200 {
 //		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
 //		a.Ctx.ResponseWriter.WriteHeader(status)
-//		fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebodyK8s))
+//		log.Fprintln(a.Ctx.ResponseWriter, string(responsebodyK8s))
 //		return
 //	}
 
@@ -969,7 +969,7 @@ func (a *AppController) deleteapp(appName string) {
 
 //	a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
 //	a.Ctx.ResponseWriter.WriteHeader(status)
-//	fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
+//	log.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
 
 //	//a.Data["json"] = map[string]string{"status": "getall success"}
 //	//a.ServeJson()
@@ -991,7 +991,7 @@ func (a *AppController) deleteapp(appName string) {
 //	if status != 200 {
 //		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
 //		a.Ctx.ResponseWriter.WriteHeader(status)
-//		fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebodyK8s))
+//		log.Fprintln(a.Ctx.ResponseWriter, string(responsebodyK8s))
 //		return
 //	}
 
@@ -1011,7 +1011,7 @@ func (a *AppController) deleteapp(appName string) {
 
 //	a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
 //	a.Ctx.ResponseWriter.WriteHeader(status)
-//	fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
+//	log.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
 
 //	//a.Data["json"] = map[string]string{"status": "get success"}
 //	//a.ServeJson()
@@ -1031,18 +1031,18 @@ func (a *AppController) deleteapp(appName string) {
 //	_, result := lib.Sendapi("DELETE", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "services", service}, []byte{})
 //	re["delete service"] = result
 //	url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/replicationcontrollers" + "?labelSelector=name%3D" + service
-//	//fmt.Println(url)
+//	//log.Println(url)
 //	rsp, _ := http.Get(url)
 //	var rclist models.ReplicationControllerList
 //	//var oldrc models.ReplicationController
 //	body, _ := ioutil.ReadAll(rsp.Body)
-//	//fmt.Println(string(body))
+//	//log.Println(string(body))
 //	json.Unmarshal(body, &rclist)
-//	//fmt.Println(rclist.Items[0].Spec)
+//	//log.Println(rclist.Items[0].Spec)
 //	if len(rclist.Items) == 0 {
 //		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 //		a.Ctx.ResponseWriter.WriteHeader(406)
-//		fmt.Fprintln(a.Ctx.ResponseWriter, string("service with no rc"))
+//		log.Fprintln(a.Ctx.ResponseWriter, string("service with no rc"))
 //		return
 //	}
 //	oldrc := rclist.Items[0]
@@ -1050,7 +1050,7 @@ func (a *AppController) deleteapp(appName string) {
 //	oldrc.TypeMeta.APIVersion = "v1beta3"
 //	oldrc.Spec.Replicas = 0
 //	body, _ = json.Marshal(oldrc)
-//	fmt.Println(string(body))
+//	log.Println(string(body))
 //	_, result = lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, body)
 //	re["delete pod"] = result
 //	//time.Sleep(5 * time.Second)
@@ -1073,13 +1073,13 @@ func (a *AppController) deleteapp(appName string) {
 //	namespace := a.Ctx.Input.Param(":namespaces")
 //	service := a.Ctx.Input.Param(":service")
 //	url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/pods" + "?labelSelector=name%3D" + service
-//	//fmt.Println(url)
+//	//log.Println(url)
 //	rsp, _ := http.Get(url)
 
 //	var rclist models.PodList
 //	body, _ := ioutil.ReadAll(rsp.Body)
 //	json.Unmarshal(body, &rclist)
-//	fmt.Println(rclist.Items)
+//	log.Println(rclist.Items)
 //	var res = map[models.PodPhase]int{}
 //	for _, v := range rclist.Items {
 //		res[v.Status.Phase]++
@@ -1103,35 +1103,35 @@ func (a *AppController) deleteapp(appName string) {
 //	if !exist {
 //		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 //		a.Ctx.ResponseWriter.WriteHeader(406)
-//		fmt.Fprintln(a.Ctx.ResponseWriter, `{"error":"no namespace`+namespace+`"}`)
+//		log.Fprintln(a.Ctx.ResponseWriter, `{"error":"no namespace`+namespace+`"}`)
 //		return
 //	}
 //	_, exist = models.Appinfo[namespace][service]
 //	if !exist {
 //		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 //		a.Ctx.ResponseWriter.WriteHeader(406)
-//		fmt.Fprintln(a.Ctx.ResponseWriter, `{"error":"no service`+service+`"}`)
+//		log.Fprintln(a.Ctx.ResponseWriter, `{"error":"no service`+service+`"}`)
 //		return
 //	}
 //	if models.Appinfo[namespace][service].Status == 0 {
 //		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 //		a.Ctx.ResponseWriter.WriteHeader(406)
-//		fmt.Fprintln(a.Ctx.ResponseWriter, `{"error":"service `+service+` has already been stopped"}`)
+//		log.Fprintln(a.Ctx.ResponseWriter, `{"error":"service `+service+` has already been stopped"}`)
 //		return
 //	}
 //	url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/replicationcontrollers" + "?labelSelector=name%3D" + service
-//	//fmt.Println(url)
+//	//log.Println(url)
 //	rsp, _ := http.Get(url)
 //	var rclist models.ReplicationControllerList
 //	//var oldrc models.ReplicationController
 //	body, _ := ioutil.ReadAll(rsp.Body)
-//	//fmt.Println(string(body))
+//	//log.Println(string(body))
 //	json.Unmarshal(body, &rclist)
-//	//fmt.Println(rclist.Items[0].Spec)
+//	//log.Println(rclist.Items[0].Spec)
 //	if len(rclist.Items) == 0 {
 //		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 //		a.Ctx.ResponseWriter.WriteHeader(406)
-//		fmt.Fprintln(a.Ctx.ResponseWriter, string("service with no rc"))
+//		log.Fprintln(a.Ctx.ResponseWriter, string("service with no rc"))
 //		return
 //	}
 //	oldrc := rclist.Items[0]
@@ -1139,13 +1139,13 @@ func (a *AppController) deleteapp(appName string) {
 //	oldrc.TypeMeta.APIVersion = "v1beta3"
 //	oldrc.Spec.Replicas = 0
 //	body, _ = json.Marshal(oldrc)
-//	fmt.Println(string(body))
+//	log.Println(string(body))
 //	status, result := lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, body)
-//	fmt.Println(status)
+//	log.Println(status)
 //	if status != 200 {
 //		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 //		a.Ctx.ResponseWriter.WriteHeader(406)
-//		fmt.Fprintln(a.Ctx.ResponseWriter, result)
+//		log.Fprintln(a.Ctx.ResponseWriter, result)
 //		return
 //	} else {
 //		models.Appinfo[namespace][service].Status = 0
@@ -1168,35 +1168,35 @@ func (a *AppController) deleteapp(appName string) {
 //	if !exist {
 //		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 //		a.Ctx.ResponseWriter.WriteHeader(406)
-//		fmt.Fprintln(a.Ctx.ResponseWriter, "no namespace "+namespace)
+//		log.Fprintln(a.Ctx.ResponseWriter, "no namespace "+namespace)
 //		return
 //	}
 //	_, exist = models.Appinfo[namespace][service]
 //	if !exist {
 //		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 //		a.Ctx.ResponseWriter.WriteHeader(406)
-//		fmt.Fprintln(a.Ctx.ResponseWriter, "no service"+service)
+//		log.Fprintln(a.Ctx.ResponseWriter, "no service"+service)
 //		return
 //	}
 //	if models.Appinfo[namespace][service].Status == 1 {
 //		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 //		a.Ctx.ResponseWriter.WriteHeader(406)
-//		fmt.Fprintln(a.Ctx.ResponseWriter, "service "+service+" has already been started")
+//		log.Fprintln(a.Ctx.ResponseWriter, "service "+service+" has already been started")
 //		return
 //	}
 //	url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/replicationcontrollers" + "?labelSelector=name%3D" + service
-//	//fmt.Println(url)
+//	//log.Println(url)
 //	rsp, _ := http.Get(url)
 //	var rclist models.ReplicationControllerList
 //	//var oldrc models.ReplicationController
 //	body, _ := ioutil.ReadAll(rsp.Body)
-//	//fmt.Println(string(body))
+//	//log.Println(string(body))
 //	json.Unmarshal(body, &rclist)
-//	//fmt.Println(rclist.Items[0].Spec)
+//	//log.Println(rclist.Items[0].Spec)
 //	if len(rclist.Items) == 0 {
 //		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 //		a.Ctx.ResponseWriter.WriteHeader(406)
-//		fmt.Fprintln(a.Ctx.ResponseWriter, "service "+service+"with no rc")
+//		log.Fprintln(a.Ctx.ResponseWriter, "service "+service+"with no rc")
 //		return
 //	}
 //	oldrc := rclist.Items[0]
@@ -1204,13 +1204,13 @@ func (a *AppController) deleteapp(appName string) {
 //	oldrc.TypeMeta.APIVersion = "v1beta3"
 //	oldrc.Spec.Replicas = models.Appinfo[namespace][service].Replicas
 //	body, _ = json.Marshal(oldrc)
-//	fmt.Println(string(body))
+//	log.Println(string(body))
 //	status, result := lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, body)
 
 //	if status != 200 {
 //		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 //		a.Ctx.ResponseWriter.WriteHeader(406)
-//		fmt.Fprintln(a.Ctx.ResponseWriter, result)
+//		log.Fprintln(a.Ctx.ResponseWriter, result)
 //		return
 //	} else {
 //		models.Appinfo[namespace][service].Status = 1
@@ -1232,44 +1232,44 @@ func (a *AppController) deleteapp(appName string) {
 //	service := a.Ctx.Input.Param(":service")
 //	var upgradeRequest models.AppUpgradeRequest
 //	err := json.Unmarshal(a.Ctx.Input.RequestBody, &upgradeRequest)
-//	fmt.Println(upgradeRequest.Containerimage)
+//	log.Println(upgradeRequest.Containerimage)
 //	if err != nil {
 //		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 //		a.Ctx.ResponseWriter.WriteHeader(406)
-//		fmt.Fprintln(a.Ctx.ResponseWriter, err)
+//		log.Fprintln(a.Ctx.ResponseWriter, err)
 //		return
 //	}
 //	image := ""
-//	//fmt.Println("%v", []byte(upgradeRequest.Warpath))
+//	//log.Println("%v", []byte(upgradeRequest.Warpath))
 //	if upgradeRequest.Warpath == "" {
 //		////
 //		image = upgradeRequest.Containerimage
 //	} else {
 //		image = "" //war to image
 //	}
-//	//fmt.Println(image)
+//	//log.Println(image)
 //	url := "http://" + models.KubernetesIp + ":8080/api/v1beta3/namespaces/" + namespace + "/replicationcontrollers" + "?labelSelector=name%3D" + service
-//	//fmt.Println(url)
+//	//log.Println(url)
 //	rsp, err := http.Get(url)
 //	var rclist models.ReplicationControllerList
 //	//var oldrc models.ReplicationController
 //	body, _ := ioutil.ReadAll(rsp.Body)
-//	//fmt.Println(string(body))
+//	//log.Println(string(body))
 //	json.Unmarshal(body, &rclist)
-//	//fmt.Println(rclist.Items[0].Spec)
+//	//log.Println(rclist.Items[0].Spec)
 //	if len(rclist.Items) == 0 {
 //		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 //		a.Ctx.ResponseWriter.WriteHeader(406)
-//		fmt.Fprintln(a.Ctx.ResponseWriter, "service "+service+"with no rc")
+//		log.Fprintln(a.Ctx.ResponseWriter, "service "+service+"with no rc")
 //		return
 //	}
 //	oldrc := rclist.Items[0]
 //	oldrc.TypeMeta.Kind = "ReplicationController"
 //	oldrc.TypeMeta.APIVersion = "v1beta3"
-//	//fmt.Println(rclist.Items[0])
-//	//fmt.Println(oldrc.Spec.Template)
+//	//log.Println(rclist.Items[0])
+//	//log.Println(oldrc.Spec.Template)
 //	//var newrc ReplicationController
-//	//fmt.Println(strings.Split(oldrc.ObjectMeta.Name, "-"))
+//	//log.Println(strings.Split(oldrc.ObjectMeta.Name, "-"))
 //	oldversion, _ := strconv.Atoi(strings.Split(oldrc.ObjectMeta.Name, "-")[1])
 //	newversion := service + "-" + strconv.Itoa(oldversion+1)
 
@@ -1310,7 +1310,7 @@ func (a *AppController) deleteapp(appName string) {
 //	if status != 201 {
 //		a.Ctx.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 //		a.Ctx.ResponseWriter.WriteHeader(status)
-//		fmt.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
+//		log.Fprintln(a.Ctx.ResponseWriter, string(responsebody))
 //		return
 //	}
 //	//
@@ -1318,7 +1318,7 @@ func (a *AppController) deleteapp(appName string) {
 //	re["create new rc"] = result
 //	oldrc.Spec.Replicas = 0
 //	body, _ = json.Marshal(oldrc)
-//	fmt.Println(string(body))
+//	log.Println(string(body))
 //	_, result = lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"namespaces", namespace, "replicationcontrollers", oldrc.ObjectMeta.Name}, body)
 //	re["close old pod"] = result
 //	//time.Sleep(5 * time.Second)

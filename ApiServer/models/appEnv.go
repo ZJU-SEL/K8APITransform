@@ -96,7 +96,7 @@ func GetPodtoSe(podip string) (string, error) {
 	}
 
 	seip := response.Node.Value
-
+	//if get the value err is nil
 	return seip, nil
 }
 
@@ -111,7 +111,7 @@ func UpdatePodtoSe(podip string, seip string) error {
 func AddPodtoSe(podip string, seip string) error {
 
 	_, err := GetPodtoSe(podip)
-
+	//using err to adjust if get value
 	if err != nil {
 		_, err := EtcdClient.Create("/potose/"+podip, seip, 0)
 		if err != nil {
