@@ -17,6 +17,9 @@ func main() {
 	serverCrt := beego.AppConfig.String("serverCrt")
 	serverKey := beego.AppConfig.String("serverKey")
 	rootCrt := beego.AppConfig.String("rootCrt")
+	controllers.DockerBuilddeamon = beego.AppConfig.String("DOCKER_BUILD_DEAMON")
+	models.ApiVersion = beego.AppConfig.String("APIVERSION")
+
 	//fmt.Println("k8sip is ", models.KubernetesIp)
 	controllers.K8sBackend, _ = models.NewBackend(models.KubernetesIp+":8080", "v1beta3")
 	Client, err := etcd.NewTLSClient(machines, serverCrt, serverKey, rootCrt)

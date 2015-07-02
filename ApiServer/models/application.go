@@ -6,9 +6,16 @@ import (
 	api "github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	"strconv"
 	//"github.com/GoogleCloudPlatform/kubernetes/pkg/client"
+	"errors"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/labels"
+	//"io/ioutil"
+	"log"
+	//"net/http"
 	"strings"
+	"time"
 )
+
+var ApiVersion string
 
 // PodInterface has methods to work with Pod resources.
 type ApplicationInterface interface {
@@ -62,7 +69,7 @@ func (a *applications) Create(app AppCreateRequest) (*Detail, error) {
 	var rc = &api.ReplicationController{
 		TypeMeta: api.TypeMeta{
 			Kind:       "ReplicationController",
-			APIVersion: "v1",
+			APIVersion: ApiVersion,
 		},
 		ObjectMeta: api.ObjectMeta{
 			Name:   a.env + "-" + id,
@@ -97,10 +104,10 @@ func (a *applications) Create(app AppCreateRequest) (*Detail, error) {
 	var service = &api.Service{
 		TypeMeta: api.TypeMeta{
 			Kind:       "Service",
-			APIVersion: "v1",
+			APIVersion: ApiVersion,
 		},
 		ObjectMeta: api.ObjectMeta{
-			Name:   id,
+			Name:   a.env + "-" + id,
 			Labels: labels,
 		},
 		Spec: api.ServiceSpec{
@@ -112,9 +119,41 @@ func (a *applications) Create(app AppCreateRequest) (*Detail, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	t := time.After(time.Second * 10)
+A:
+	for {
+		select {
+		case <-t:
+			log.Println("time out to allocate ip")
+			//delete the se which deploy failed
+			return nil, errors.New(`{"errorMessage":"` + "deploy error : time out" + `"}`)
+			break A
+		default:
+			//log.Println("logout:", <-timeout)
+			sename := service.ObjectMeta.Labels["name"]
+			podslist, err := a.b.Podip(sename)
+			if err != nil {
+				log.Println(err.Error())
+				return nil, errors.New(`{"errorMessage":"` + err.Error() + `"}`)
+				//delayok <- 0
+				break A
+			}
+			if len(podslist) == 0 {
+				continue
+			} else {
+				log.Println("allocation ok ......")
+				break A
+			}
+
+		}
+	}
+
+	log.Println("waing pods ip allocation....")
 	detail, err := a.Get(labels["name"])
 	return detail, nil
 }
+
 func (a *applications) List() (*Detail, error) {
 	label := map[string]string{"env": a.env}
 	serviceslist, err := a.b.Services("default").List(labels.SelectorFromSet(label))
