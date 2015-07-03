@@ -12,6 +12,28 @@ app.conf : choose suitable certfile and the k8sip and etcdmaster
 ####基本路由结构
 参见 api.odt 文档
 
+####当前路由规则
+
+<table>
+   <tr>
+      <td>John</td>
+      <td>Smith</td>
+      <td>123 Main St.</td>
+      <td>Springfield</td>
+   </tr>
+   <tr>
+      <td>Mary</td>
+      <td>Jones</td>
+      <td>456 Pine St.</td>
+      <td>Dover</td>
+   </tr>
+   <tr>
+      <td>Jim</td>
+      <td>Baker</td>
+      <td>789 Park Ave.</td>
+      <td>Lincoln</td>
+   </tr>
+</table>
 
 ####createenv
 1 从前台接收传过来的json字段，作为基本的env环境env环境（作为创建service参数的一部分） {TomcatV string , JdkV    string , NodeNum string, Name    string , Used    int} 
