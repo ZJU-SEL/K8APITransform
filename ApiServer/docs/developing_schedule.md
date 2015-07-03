@@ -156,9 +156,6 @@ app.conf : choose suitable certfile and the k8sip and etcdmaster
       </td>
    </tr>
    <tr>
-      <td>
-         
-      </td>
    </tr>
 </table>
 
