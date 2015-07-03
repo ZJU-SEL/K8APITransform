@@ -16,22 +16,149 @@ app.conf : choose suitable certfile and the k8sip and etcdmaster
 
 <table>
    <tr>
-      <td>John</td>
-      <td>Smith</td>
-      <td>123 Main St.</td>
-      <td>Springfield</td>
+      <td>
+         &#24050;&#23454;&#29616;
+      </td>
+      <td>
+         &#22522;&#26412;&#25551;&#36848;
+      </td>
+      <td>
+         &#27491;&#22312;&#23454;&#29616;
+      </td>
+      <td>
+         &#24453;&#23454;&#29616;
+      </td>
    </tr>
    <tr>
-      <td>Mary</td>
-      <td>Jones</td>
-      <td>456 Pine St.</td>
-      <td>Dover</td>
+      <td>
+         /createEnv [post]
+      </td>
+      <td>
+         &#21019;&#24314;env 
+      </td>
+      <td>
+         Event&#25509;&#21475;
+      </td>
+      <td>
+         
+      </td>
    </tr>
    <tr>
-      <td>Jim</td>
-      <td>Baker</td>
-      <td>789 Park Ave.</td>
-      <td>Lincoln</td>
+      <td>
+         /deleteEnv/:envname [delete]
+      </td>
+      <td>
+         &#21024;&#38500; env
+      </td>
+      <td>
+         Deploy&#30340;&#26102;&#20505;&#28155;&#21152;&#36164;&#28304;&#25511;&#21046;
+      </td>
+      <td>
+         
+      </td>
+   </tr>
+   <tr>
+      <td>
+         /getuploadwars [get]
+      </td>
+      <td>
+         &#33719;&#21462;&#24050;&#19978;&#20256;&#30340;war&#21253;&#20449;&#24687;
+      </td>
+      <td>
+         
+      </td>
+      <td>
+         
+      </td>
+   </tr>
+   <tr>
+      <td>
+         /upload [post]
+      </td>
+      <td>
+         &#19978;&#20256;war&#21253;
+      </td>
+      <td>
+         
+      </td>
+      <td>
+         
+      </td>
+   </tr>
+   <tr>
+      <td>
+         /deploy [post]
+      </td>
+      <td>
+         &#37096;&#32626;war&#21253;
+      </td>
+      <td>
+         
+      </td>
+      <td>
+         
+      </td>
+   </tr>
+   <tr>
+      <td>
+         /partDetails [get]
+      </td>
+      <td>
+         &#33719;&#21462;env &#20197;&#21450;app&#20449;&#24687;
+      </td>
+      <td>
+         
+      </td>
+      <td>
+         
+      </td>
+   </tr>
+   <tr>
+      <td>
+         /restartApp [post]
+      </td>
+      <td>
+         &#37325;&#21551;&#24212;&#29992;
+      </td>
+      <td>
+         
+      </td>
+      <td>
+         
+      </td>
+   </tr>
+   <tr>
+      <td>
+         /scaleApp [put]
+      </td>
+      <td>
+         &#25193;&#23637;&#24212;&#29992;
+      </td>
+      <td>
+         
+      </td>
+      <td>
+         
+      </td>
+   </tr>
+   <tr>
+      <td>
+         /delete [delete]
+      </td>
+      <td>
+         &#21024;&#38500;&#24212;&#29992;
+      </td>
+      <td>
+         
+      </td>
+      <td>
+         
+      </td>
+   </tr>
+   <tr>
+      <td>
+         
+      </td>
    </tr>
 </table>
 
