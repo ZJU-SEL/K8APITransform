@@ -34,7 +34,7 @@ app.conf : choose suitable certfile and the k8sip and etcdmaster
          /createEnv [post]
       </td>
       <td>
-         &#21019;&#24314;env 
+         &#21019;&#24314;env
       </td>
       <td>
          Event&#25509;&#21475;
@@ -65,7 +65,7 @@ app.conf : choose suitable certfile and the k8sip and etcdmaster
          &#33719;&#21462;&#24050;&#19978;&#20256;&#30340;war&#21253;&#20449;&#24687;
       </td>
       <td>
-         
+         添加证书
       </td>
       <td>
          
