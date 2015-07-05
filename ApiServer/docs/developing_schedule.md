@@ -14,6 +14,14 @@ app.conf : choose suitable certfile and the k8sip and etcdmaster
 
 ####当前路由规则
 
+###Kube-apiserer源码分析
+commit id
+
+###cmd基本内容
+kubernetes/cmd/kube-apiserver/包下
+主要是命令行执行的时候的一个工具，使用到的是github.com/spf13/pflag包。
+
+
 <table>
    <tr>
       <td>
@@ -40,7 +48,7 @@ app.conf : choose suitable certfile and the k8sip and etcdmaster
          Event&#25509;&#21475;
       </td>
       <td>
-         
+         认证登录 
       </td>
    </tr>
    <tr>
@@ -54,7 +62,7 @@ app.conf : choose suitable certfile and the k8sip and etcdmaster
          Deploy&#30340;&#26102;&#20505;&#28155;&#21152;&#36164;&#28304;&#25511;&#21046;
       </td>
       <td>
-         
+         添加多用户
       </td>
    </tr>
    <tr>
@@ -65,7 +73,7 @@ app.conf : choose suitable certfile and the k8sip and etcdmaster
          &#33719;&#21462;&#24050;&#19978;&#20256;&#30340;war&#21253;&#20449;&#24687;
       </td>
       <td>
-         添加证书
+         添加证书控制
       </td>
       <td>
          
