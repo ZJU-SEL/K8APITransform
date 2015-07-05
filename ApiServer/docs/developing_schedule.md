@@ -14,14 +14,6 @@ app.conf : choose suitable certfile and the k8sip and etcdmaster
 
 ####当前路由规则
 
-###Kube-apiserer源码分析
-commit id
-
-###cmd基本内容
-kubernetes/cmd/kube-apiserver/包下
-主要是命令行执行的时候的一个工具，使用到的是github.com/spf13/pflag包。
-
-
 <table>
    <tr>
       <td>
