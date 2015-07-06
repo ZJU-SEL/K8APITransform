@@ -21,7 +21,7 @@ func main() {
 	models.ApiVersion = beego.AppConfig.String("APIVERSION")
 
 	//fmt.Println("k8sip is ", models.KubernetesIp)
-	controllers.K8sBackend, _ = models.NewBackend(models.KubernetesIp+":8080", "v1beta3")
+	controllers.K8sBackend, _ = models.NewBackend(models.KubernetesIp+":8080", models.ApiVersion)
 	Client, err := etcd.NewTLSClient(machines, serverCrt, serverKey, rootCrt)
 	if err != nil {
 		fmt.Println(err.Error())

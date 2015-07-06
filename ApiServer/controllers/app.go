@@ -286,6 +286,9 @@ func (a *AppController) Deploy() {
 				Protocol: "tcp",
 			},
 		},
+		Cpu:            env.Cpu,
+		Memery:         env.Memery,
+		Storage:        env.Storage,
 		Containername:  env.Name,
 		Containerimage: imagename,
 	}

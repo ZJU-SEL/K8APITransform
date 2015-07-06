@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	api "github.com/GoogleCloudPlatform/kubernetes/pkg/api"
+	"github.com/GoogleCloudPlatform/kubernetes/pkg/api/resource"
 	"strconv"
 	//"github.com/GoogleCloudPlatform/kubernetes/pkg/client"
 	"errors"
@@ -64,7 +65,33 @@ func (a *applications) Create(app AppCreateRequest) (*Detail, error) {
 			Name:  a.env + "-" + id,
 			Image: app.Containerimage,
 			Ports: containerports,
+			Resources: api.ResourceRequirements{
+				Limits: api.ResourceList{},
+			},
 		},
+	}
+	//var cores, memorySize, diskSize *resource.Quantity
+	if app.Cpu != "" {
+		cores, err := resource.ParseQuantity(app.Cpu)
+		if err != nil {
+			return nil, err
+		}
+		containers[0].Resources.Limits[api.ResourceCPU] = *cores
+	}
+	if app.Memery != "" {
+		memorySize, err := resource.ParseQuantity(app.Memery)
+		if err != nil {
+			return nil, err
+		}
+		containers[0].Resources.Limits[api.ResourceMemory] = *memorySize
+	}
+	if app.Storage != "" {
+		diskSize, err := resource.ParseQuantity(app.Storage)
+		if err != nil {
+			return nil, err
+		}
+		containers[0].Resources.Limits[api.ResourceStorage] = *diskSize
+
 	}
 	var rc = &api.ReplicationController{
 		TypeMeta: api.TypeMeta{

@@ -21,6 +21,9 @@ type AppCreateRequest struct {
 	Runlocal       bool
 	Containername  string
 	Containerimage string
+	Cpu            string
+	Memery         string
+	Storage        string
 	Warpath        string
 	ContainerPort  []Containerport
 	Volumes        []api.Volume

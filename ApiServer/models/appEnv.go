@@ -10,6 +10,9 @@ type AppEnv struct {
 	JdkV    string
 	NodeNum string
 	Name    string
+	Cpu     string
+	Memery  string
+	Storage string
 	Used    int
 }
 
