@@ -5,11 +5,13 @@ import (
 	"K8APITransform/ApiServer/lib"
 	"K8APITransform/ApiServer/models"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
 	//"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
+	"github.com/GoogleCloudPlatform/kubernetes/pkg/fields"
 	//"K8APITransform/ApiServer/backend"
 	"github.com/astaxie/beego"
 	"io"
@@ -598,6 +600,33 @@ func (a *AppController) deleteapp(appName string) {
 	lib.Sendapi("DELETE", models.KubernetesIp, "8080", "v1", []string{"namespaces", namespace, "services", appName}, []byte{})
 	//re["delete service"] = result
 	lib.Sendapi("DELETE", models.KubernetesIp, "8080", "v1", []string{"namespaces", namespace, "replicationcontrollers", appName}, []byte{})
+}
+
+// @Title get events
+// @Description get events
+
+// @router /events [get]
+func (a *AppController) GetEvents() {
+	//namespace := "default"
+	se := fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Pod"})
+	fmt.Println(se)
+	data, _ := K8sBackend.Events("default").List(nil, se)
+	a.Data["json"] = data
+	a.ServeJson()
+}
+
+// @Title get status
+// @Description get status
+
+// @router /status [get]
+func (a *AppController) GetStatus() {
+	//namespace := "default"
+	se := fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Pod"})
+	fmt.Println(se)
+	data, _ := K8sBackend.Nodes().List(nil, nil)
+
+	a.Data["json"] = data
+	a.ServeJson()
 }
 
 //// @Title get all apps
