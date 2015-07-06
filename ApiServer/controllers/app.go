@@ -5,12 +5,13 @@ import (
 	"K8APITransform/ApiServer/lib"
 	"K8APITransform/ApiServer/models"
 	"encoding/json"
-	"io/ioutil"
+	//"io/ioutil"
+	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	"log"
 	"strconv"
 	"strings"
-	//"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	//"K8APITransform/ApiServer/backend"
+	"github.com/GoogleCloudPlatform/kubernetes/pkg/labels"
 	"github.com/astaxie/beego"
 	"io"
 	"net/http"
@@ -219,29 +220,28 @@ func (a *AppController) Deploy() {
 
 	username := "cxy"
 	//newimage := uploadfilename
-
 	//newimage_part := strings.Split(uploadfilename, "-")[0]
 	if deployReq.IsGreyUpdating == "0" {
-		//namespace := "default"
-		url := "http://" + models.KubernetesIp + ":8080/api/v1/namespaces/" + namespace + "/services" + "?labelSelector=env%3D" + deployReq.EnvName
-		//log.Println(url)
-		rsp, _ := http.Get(url)
-		var serviceslist models.ServiceList
-		body, _ := ioutil.ReadAll(rsp.Body)
-		json.Unmarshal(body, &serviceslist)
-		for _, v := range serviceslist.Items {
-			a.deleteapp(v.ObjectMeta.Labels["name"])
+		label := map[string]string{}
+		label["env"] = deployReq.EnvName
+		serviceslist, err := K8sBackend.Services(namespace).List(labels.SelectorFromSet(label))
+		if err != nil {
+			a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+			http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+			return
 		}
-
+		for _, v := range serviceslist.Items {
+			//a.deleteapp(v.ObjectMeta.Labels["name"])
+			K8sBackend.Applications(env.Name).Delete(v.ObjectMeta.Labels["name"])
+		}
 	}
+
 	warName := uploadfilename
 	newimage_name_temp := []byte(uploadfilename)
 	newimage_name := string(newimage_name_temp[0 : len(newimage_name_temp)-4])
 	//newimage_name := strings.Split(newimage_part, ".")[0]
-
 	newimage_version := deployReq.AppVersion
 	newimage := newimage_name + "-" + newimage_version + ".war"
-
 	log.Println("newimagename:", newimage)
 	//deployReq imagename string, uploaddir string) error
 	//dockerdeamon := "unix:///var/run/docker.sock"
@@ -276,14 +276,14 @@ func (a *AppController) Deploy() {
 			models.Port{
 				Port:       8080,
 				TargetPort: 8080,
-				Protocol:   "tcp",
+				Protocol:   "TCP",
 			},
 		},
 		Replicas: replicas,
 		ContainerPort: []models.Containerport{
 			models.Containerport{
 				Port:     8080,
-				Protocol: "tcp",
+				Protocol: "TCP",
 			},
 		},
 		Cpu:            env.Cpu,
@@ -293,9 +293,22 @@ func (a *AppController) Deploy() {
 		Containerimage: imagename,
 	}
 
+	//Todo: get the se according to the label if err==nil the se already exist
+	label := map[string]string{}
+	label["env"] = deployReq.EnvName
+	label["name"] = deployReq.EnvName + "-" + app.Name + "-" + app.Version
+	selist, err := K8sBackend.Services(namespace).List(labels.SelectorFromSet(label))
+	if len(selist.Items) != 0 {
+		//already exist
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{errorMessage: the service already exist}`, 406)
+		return
+	}
+
 	detail, err := K8sBackend.Applications(env.Name).Create(app)
 	if err != nil {
-		a.deleteapp(app.Name + "-" + app.Version)
+		//a.deleteapp(app.Name + "-" + app.Version)
+		K8sBackend.Applications(env.Name).Delete(app.Name + "-" + app.Version)
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
@@ -335,19 +348,29 @@ func (a *AppController) PartDetails() {
 
 func (a *AppController) getdetails(env *models.AppEnv) *models.Detail {
 	namespace := "default"
-	url := "http://" + models.KubernetesIp + ":8080/api/v1/namespaces/" + namespace + "/services" + "?labelSelector=env%3D" + env.Name
-	//log.Println(url)
-	rsp, _ := http.Get(url)
-	var serviceslist models.ServiceList
-	body, _ := ioutil.ReadAll(rsp.Body)
-	json.Unmarshal(body, &serviceslist)
+	label := map[string]string{}
+	label["env"] = env.Name
+	serviceslist, err := K8sBackend.Services(namespace).List(labels.SelectorFromSet(label))
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return nil
+	}
 
-	url = "http://" + models.KubernetesIp + ":8080/api/v1/namespaces/" + namespace + "/pods" + "?labelSelector=env%3D" + env.Name
+	//url := "http://" + models.KubernetesIp + ":8080/api/v1/namespaces/" + namespace + "/services" + "?labelSelector=env%3D" + env.Name
 	//log.Println(url)
-	rsp, _ = http.Get(url)
-	var podslist models.PodList
-	body, _ = ioutil.ReadAll(rsp.Body)
-	json.Unmarshal(body, &podslist)
+	//rsp, _ := http.Get(url)
+	//var serviceslist models.ServiceList
+	//body, _ := ioutil.ReadAll(rsp.Body)
+	//json.Unmarshal(body, &serviceslist)
+
+	//url = "http://" + models.KubernetesIp + ":8080/api/v1/namespaces/" + namespace + "/pods" + "?labelSelector=env%3D" + env.Name
+	//log.Println(url)
+	//rsp, _ = http.Get(url)
+	//var podslist models.PodList
+	//body, _ = ioutil.ReadAll(rsp.Body)
+	//json.Unmarshal(body, &podslist)
+	podslist, err := K8sBackend.Pods(namespace).List(labels.SelectorFromSet(label), nil)
 
 	detail := &models.Detail{Name: env.Name, Status: 1, NodeType: 1, Context: []models.Detail{}, Children: []models.Detail{}}
 	detail.Children = append(detail.Children, models.Detail{
@@ -374,7 +397,7 @@ func (a *AppController) getdetails(env *models.AppEnv) *models.Detail {
 	} else {
 		for k, v := range podslist.Items {
 			status := 0
-			if v.Status.Phase == models.PodRunning {
+			if v.Status.Phase == api.PodRunning {
 				status = 1
 			}
 			//names := strings.Split(v.ObjectMeta.Labels["name"], "-")
@@ -584,6 +607,7 @@ func (a *AppController) DeleteApp() {
 	}
 	appName := app["appName"]
 	a.deleteapp(appName)
+	//K8sBackend.Applications(env.Name).Delete(appName)
 	//re := map[string]interface{}{}
 	//re["delete rc"] = result
 	//delete(models.Appinfo[namespace], service)
@@ -591,6 +615,7 @@ func (a *AppController) DeleteApp() {
 	a.ServeJson()
 
 }
+
 func (a *AppController) deleteapp(appName string) {
 	namespace := "default"
 	appName = strings.ToLower(appName)
