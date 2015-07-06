@@ -25,6 +25,31 @@ func NewBackend(host string, apiVersion string) (*Backend, error) {
 	}
 	return &Backend{Client}, nil
 }
+
+func NewBackendTLS(host string, apiVersion string, certDir string) (*Backend, error) {
+
+	config := &client.Config{
+		Host:    host,
+		Version: apiVersion,
+		TLSClientConfig: client.TLSClientConfig{
+			// Server requires TLS client certificate authentication
+			CertFile: certDir + "/server.crt",
+			// Server requires TLS client certificate authentication
+			KeyFile: certDir + "/server.key",
+			// Trusted root certificates for server
+			CAFile: certDir + "/ca.crt",
+		},
+		BearerToken: "abcdTOKEN1234",
+	}
+
+	Client, err := client.New(config)
+	if err != nil {
+		return nil, err
+	}
+	return &Backend{Client}, nil
+
+}
+
 func (c *Backend) Applications(env string) ApplicationInterface {
 	return newApplications(c, env)
 }
