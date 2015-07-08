@@ -165,15 +165,19 @@ func (a *AppController) Checkuser() {
 	data := url.Values{}
 	data.Add("userName", username)
 	data.Add("password", password)
-	data.Add("masterip", masterip)
-	resp, err := client.PostForm("http://10.10.105.135:8800/user/ckeckAndUpdate", data)
+	data.Add("masterIp", masterip)
+	fmt.Println(data)
+	resp, err := client.PostForm("http://10.10.105.135:8800/user/checkAndUpdate", data)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
 	defer resp.Body.Close()
+
 	body, _ := ioutil.ReadAll(resp.Body)
+	fmt.Println(string(body))
+	//body = []byte("true")
 	if strings.Contains(string(body), "true") {
 		//store the ca.crt into the file into certs/ip:port/ca.crt
 		//create the ca.crt certs/ip:port/ca.crt
