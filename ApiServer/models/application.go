@@ -55,7 +55,7 @@ func (a *applications) Create(app AppCreateRequest) (*Detail, error) {
 	//name := app.Name + "-" + app.Version
 	//name = strings.ToLower(name)
 	//name = strings.Replace(name, ".", "", -1)
-	id, err := IdPools.GetId(a.env)
+	id, err := IdPools.GetId(a.b.ip, a.env)
 	if err != nil {
 		return nil, err
 	}

@@ -10,10 +10,11 @@ import (
 	//"io/ioutil"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/fields"
+	"io/ioutil"
 	"log"
+	"net/url"
 	"strconv"
 	"strings"
-
 	//"K8APITransform/ApiServer/backend"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/labels"
 	"github.com/astaxie/beego"
@@ -26,7 +27,6 @@ import (
 
 //store the relationship of podip and service ip
 var serviceipmap = make(map[string]string)
-var K8sBackend *models.Backend
 var DockerBuilddeamon string
 
 // Operations about App
@@ -44,6 +44,7 @@ func NewIntOrStringFromInt(val int) models.IntOrString {
 
 // @router /createEnv [post]
 func (a *AppController) CreateEnv() {
+	ip := a.Ctx.Request.Header.Get("Authorization")
 	var env models.AppEnv
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &env)
 	if err != nil {
@@ -57,7 +58,7 @@ func (a *AppController) CreateEnv() {
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
-	err = models.AddAppEnv(&env)
+	err = models.AddAppEnv(ip, &env)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
@@ -93,7 +94,8 @@ func (a *AppController) CreateEnv() {
 
 // @router /getuploadwars [get]
 func (a *AppController) Getuploadwars() {
-	username := "cxy"
+	ip := a.Ctx.Request.Header.Get("Authorization")
+	username := ip
 	dirhandle, err := os.Open("applications/" + username)
 	//log.Println(dirname)
 	//log.Println(reflect.TypeOf(dirhandle))
@@ -143,12 +145,71 @@ func (a *AppController) Getuploadwars() {
 	a.ServeJson()
 }
 
+// @Title checkUser
+// @Description checkuser and store the ca.crt
+// @router /checkuser [post]
+func (a *AppController) Checkuser() {
+	var clusterinfo = map[string]string{}
+	err := json.Unmarshal(a.Ctx.Input.RequestBody, &clusterinfo)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	username := clusterinfo["username"]
+	password := clusterinfo["password"]
+	masterip := clusterinfo["masterip"]
+	cafile := clusterinfo["cacrt"]
+	//send the info to the node.js backend
+	client := &http.Client{}
+	data := url.Values{}
+	data.Add("userName", username)
+	data.Add("password", password)
+	data.Add("masterip", masterip)
+	resp, err := client.PostForm("http://10.10.105.135:8800/user/ckeckAndUpdate", data)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+	if strings.Contains(string(body), "true") {
+		//store the ca.crt into the file into certs/ip:port/ca.crt
+		//create the ca.crt certs/ip:port/ca.crt
+		//write the string in to the ca.crt
+		data := []byte(cafile)
+		filename := "certs/" + username + "/ca.crt"
+		os.Mkdir("certs/"+username, 0777)
+		err := ioutil.WriteFile(filename, data, 0666)
+		if err != nil {
+			a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+			http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+			return
+		}
+
+		// add the info into the /etc/hosts
+		//echo masterip username >> /etc/hosts
+		command := "echo " + masterip + " " + username + ">> /etc/hosts"
+		models.EtcdClient.Create("/iptohost/"+masterip, username, 0)
+		Fti.Systemexec(command)
+		a.Ctx.ResponseWriter.WriteHeader(200)
+		return
+	} else {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage: check fail}`, 406)
+		return
+	}
+
+}
+
 // @Title upload war
 // @Description upload
 
 // @router /upload [post]
 func (a *AppController) Upload() {
 	//a.ParseForm()
+	ip := a.Ctx.Request.Header.Get("Authorization")
 	file, _, err := a.GetFile("filePath")
 	version := a.GetString("version")
 	appName := a.GetString("appName")
@@ -159,7 +220,7 @@ func (a *AppController) Upload() {
 	app_part := string(date)
 	appName_tmp := app_part + "-" + version + ".war"
 
-	username := "cxy"
+	username := ip
 	//uploaddir := "applications/" + username + "/" + appName + "-" + version + "_deploy/"
 	uploaddir := "applications/" + username + "/" + appName_tmp + "_deploy/"
 	Fti.Createdir(uploaddir)
@@ -193,6 +254,8 @@ func (a *AppController) Upload() {
 // @router /deploy [post]
 func (a *AppController) Deploy() {
 	namespace := "default"
+	ip := a.Ctx.Request.Header.Get("Authorization")
+	K8sBackend, _ := models.NewBackendTLS(ip, "v1beta3") //a.GetSession("backend").(*models.Backend)
 	deployReq := models.DeployRequest{}
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &deployReq)
 	log.Println(deployReq)
@@ -207,7 +270,7 @@ func (a *AppController) Deploy() {
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
-	env, err := models.GetAppEnv(deployReq.EnvName)
+	env, err := models.GetAppEnv(ip, deployReq.EnvName)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
@@ -222,7 +285,7 @@ func (a *AppController) Deploy() {
 	//	uploadfilename = deployReq.WarName
 	//}
 
-	username := "cxy"
+	username := ip
 	//newimage := uploadfilename
 	//newimage_part := strings.Split(uploadfilename, "-")[0]
 	if deployReq.IsGreyUpdating == "0" {
@@ -251,7 +314,7 @@ func (a *AppController) Deploy() {
 	//dockerdeamon := "unix:///var/run/docker.sock"
 	//dockerdeamon := "http://10.211.55.10:2376"
 	dockerdeamon := DockerBuilddeamon
-	imageprefix := username + "reg:5000"
+	imageprefix := "cxy" + "reg:5000"
 
 	//deployReq imagename string, uploaddir string) error
 	//dockerdeamon := "unix:///var/run/docker.sock"
@@ -318,7 +381,7 @@ func (a *AppController) Deploy() {
 		return
 	}
 	env.Used++
-	err = models.UpdateAppEnv(env.Name, env)
+	err = models.UpdateAppEnv(ip, env.Name, env)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
@@ -336,6 +399,9 @@ func (a *AppController) Deploy() {
 // @router /partDetails [get]
 func (a *AppController) PartDetails() {
 	//a.ParseForm()
+	ip := a.Ctx.Request.Header.Get("Authorization")
+	K8sBackend, _ := models.NewBackendTLS(ip, "v1beta3")
+	//K8sBackend := a.GetSession("backend").(*models.Backend)
 	envName := a.GetString("envName")
 	log.Println(envName)
 	detail, err := K8sBackend.Applications(envName).List()
@@ -350,95 +416,97 @@ func (a *AppController) PartDetails() {
 
 }
 
-func (a *AppController) getdetails(env *models.AppEnv) *models.Detail {
-	namespace := "default"
-	label := map[string]string{}
-	label["env"] = env.Name
-	serviceslist, err := K8sBackend.Services(namespace).List(labels.SelectorFromSet(label))
-	if err != nil {
-		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
-		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
-		return nil
-	}
+//func (a *AppController) getdetails(env *models.AppEnv) *models.Detail {
+//	namespace := "default"
+//	label := map[string]string{}
+//	label["env"] = env.Name
+//	serviceslist, err := K8sBackend.Services(namespace).List(labels.SelectorFromSet(label))
+//	if err != nil {
+//		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+//		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+//		return nil
+//	}
 
-	//url := "http://" + models.KubernetesIp + ":8080/api/v1/namespaces/" + namespace + "/services" + "?labelSelector=env%3D" + env.Name
-	//log.Println(url)
-	//rsp, _ := http.Get(url)
-	//var serviceslist models.ServiceList
-	//body, _ := ioutil.ReadAll(rsp.Body)
-	//json.Unmarshal(body, &serviceslist)
+//	//url := "http://" + models.KubernetesIp + ":8080/api/v1/namespaces/" + namespace + "/services" + "?labelSelector=env%3D" + env.Name
+//	//log.Println(url)
+//	//rsp, _ := http.Get(url)
+//	//var serviceslist models.ServiceList
+//	//body, _ := ioutil.ReadAll(rsp.Body)
+//	//json.Unmarshal(body, &serviceslist)
 
-	//url = "http://" + models.KubernetesIp + ":8080/api/v1/namespaces/" + namespace + "/pods" + "?labelSelector=env%3D" + env.Name
-	//log.Println(url)
-	//rsp, _ = http.Get(url)
-	//var podslist models.PodList
-	//body, _ = ioutil.ReadAll(rsp.Body)
-	//json.Unmarshal(body, &podslist)
-	podslist, err := K8sBackend.Pods(namespace).List(labels.SelectorFromSet(label), nil)
+//	//url = "http://" + models.KubernetesIp + ":8080/api/v1/namespaces/" + namespace + "/pods" + "?labelSelector=env%3D" + env.Name
+//	//log.Println(url)
+//	//rsp, _ = http.Get(url)
+//	//var podslist models.PodList
+//	//body, _ = ioutil.ReadAll(rsp.Body)
+//	//json.Unmarshal(body, &podslist)
+//	podslist, err := K8sBackend.Pods(namespace).List(labels.SelectorFromSet(label), nil)
 
-	detail := &models.Detail{Name: env.Name, Status: 1, NodeType: 1, Context: []models.Detail{}, Children: []models.Detail{}}
-	detail.Children = append(detail.Children, models.Detail{
-		Name:     "Nginx",
-		Status:   1,
-		NodeType: 2,
-		Context: []models.Detail{
-			models.Detail{
-				Name:     "Node1",
-				NodeType: 2,
-			},
-		},
-	})
-	tomcat := models.Detail{Name: "tomcat", Status: 1, NodeType: 2, Context: []models.Detail{}, Children: []models.Detail{}}
-	if len(podslist.Items) == 0 {
-		num, _ := strconv.Atoi(env.NodeNum)
-		for k := 0; k < num; k++ {
-			//names := strings.Split(v.ObjectMeta.Labels["name"], "-")
-			tomcat.Context = append(tomcat.Context, models.Detail{
-				Name:     "Node" + strconv.Itoa(k+1),
-				NodeType: 3,
-			})
-		}
-	} else {
-		for k, v := range podslist.Items {
-			status := 0
-			if v.Status.Phase == api.PodRunning {
-				status = 1
-			}
-			//names := strings.Split(v.ObjectMeta.Labels["name"], "-")
-			tomcat.Context = append(tomcat.Context, models.Detail{
-				Name:       "Node" + strconv.Itoa(k+1),
-				AppVersion: v.ObjectMeta.Labels["name"],
-				Status:     status,
-				NodeType:   3,
-			})
-		}
-	}
-	apps := []models.Detail{}
-	for _, v := range serviceslist.Items {
-		//names := strings.Split(v.ObjectMeta.Labels["name"], "-")
-		apps = append(apps, models.Detail{
-			Name:     v.ObjectMeta.Labels["name"],
-			NodeType: 4,
-			Status:   1,
-			Resource: []models.Detail{models.Detail{Name: "IP", Value: v.Spec.ClusterIP + ":8080"}},
-		})
-	}
-	tomcat.Children = append(tomcat.Children, models.Detail{
-		Name:     "应用",
-		NodeType: 3,
-		Context:  []models.Detail{},
-	})
-	tomcat.Children[0].Context = append(tomcat.Children[0].Context, apps...)
-	detail.Children = append(detail.Children, tomcat)
-	return detail
-}
+//	detail := &models.Detail{Name: env.Name, Status: 1, NodeType: 1, Context: []models.Detail{}, Children: []models.Detail{}}
+//	detail.Children = append(detail.Children, models.Detail{
+//		Name:     "Nginx",
+//		Status:   1,
+//		NodeType: 2,
+//		Context: []models.Detail{
+//			models.Detail{
+//				Name:     "Node1",
+//				NodeType: 2,
+//			},
+//		},
+//	})
+//	tomcat := models.Detail{Name: "tomcat", Status: 1, NodeType: 2, Context: []models.Detail{}, Children: []models.Detail{}}
+//	if len(podslist.Items) == 0 {
+//		num, _ := strconv.Atoi(env.NodeNum)
+//		for k := 0; k < num; k++ {
+//			//names := strings.Split(v.ObjectMeta.Labels["name"], "-")
+//			tomcat.Context = append(tomcat.Context, models.Detail{
+//				Name:     "Node" + strconv.Itoa(k+1),
+//				NodeType: 3,
+//			})
+//		}
+//	} else {
+//		for k, v := range podslist.Items {
+//			status := 0
+//			if v.Status.Phase == api.PodRunning {
+//				status = 1
+//			}
+//			//names := strings.Split(v.ObjectMeta.Labels["name"], "-")
+//			tomcat.Context = append(tomcat.Context, models.Detail{
+//				Name:       "Node" + strconv.Itoa(k+1),
+//				AppVersion: v.ObjectMeta.Labels["name"],
+//				Status:     status,
+//				NodeType:   3,
+//			})
+//		}
+//	}
+//	apps := []models.Detail{}
+//	for _, v := range serviceslist.Items {
+//		//names := strings.Split(v.ObjectMeta.Labels["name"], "-")
+//		apps = append(apps, models.Detail{
+//			Name:     v.ObjectMeta.Labels["name"],
+//			NodeType: 4,
+//			Status:   1,
+//			Resource: []models.Detail{models.Detail{Name: "IP", Value: v.Spec.ClusterIP + ":8080"}},
+//		})
+//	}
+//	tomcat.Children = append(tomcat.Children, models.Detail{
+//		Name:     "应用",
+//		NodeType: 3,
+//		Context:  []models.Detail{},
+//	})
+//	tomcat.Children[0].Context = append(tomcat.Children[0].Context, apps...)
+//	detail.Children = append(detail.Children, tomcat)
+//	return detail
+//}
 
 // @Title get Details
 // @Description get Details
 
 // @router /details [get]
 func (a *AppController) Details() {
-	envs, err := models.GetAllAppEnv()
+	ip := a.Ctx.Request.Header.Get("Authorization")
+	K8sBackend, _ := models.NewBackendTLS(ip, "v1beta3")
+	envs, err := models.GetAllAppEnv(ip)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
@@ -458,6 +526,8 @@ func (a *AppController) Details() {
 
 // @router /restartApp [post]
 func (a *AppController) RestartApp() {
+	ip := a.Ctx.Request.Header.Get("Authorization")
+	K8sBackend, _ := models.NewBackendTLS(ip, "v1beta3")
 	//namespace := "default"
 	req := map[string]string{}
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &req)
@@ -490,8 +560,10 @@ func (a *AppController) RestartApp() {
 
 // @router /getEnv/:envname [get]
 func (a *AppController) GetEnv() {
+	ip := a.Ctx.Request.Header.Get("Authorization")
+	//K8sBackend := models.NewBackendTLS(ip, "v1beta3")
 	name := a.Ctx.Input.Param(":envname")
-	env, err := models.GetAppEnv(name)
+	env, err := models.GetAppEnv(ip, name)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
@@ -506,8 +578,9 @@ func (a *AppController) GetEnv() {
 
 // @router /deleteEnv/:envname [delete]
 func (a *AppController) DeleteEnv() {
+	ip := a.Ctx.Request.Header.Get("Authorization")
 	name := a.Ctx.Input.Param(":envname")
-	err := models.DeleteAppEnv(name)
+	err := models.DeleteAppEnv(ip, name)
 	//env, err := models.GetAppEnv(name)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
@@ -522,6 +595,8 @@ func (a *AppController) DeleteEnv() {
 // @Description getpodsip
 // @router /podsip/:sename [get]
 func (a *AppController) Getpodsip() {
+	ip := a.Ctx.Request.Header.Get("Authorization")
+	K8sBackend, _ := models.NewBackendTLS(ip, "v1beta3")
 	sename := a.Ctx.Input.Param(":sename")
 	log.Println(sename)
 	iplist, err := K8sBackend.Podip(sename)
@@ -564,7 +639,8 @@ func (a *AppController) Getseip() error {
 // @router /scaleApp [put]
 func (a *AppController) Scale() {
 	//namespace := "default"
-
+	ip := a.Ctx.Request.Header.Get("Authorization")
+	K8sBackend, _ := models.NewBackendTLS(ip, "v1beta3")
 	var appScale models.AppScale
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &appScale)
 
@@ -595,6 +671,8 @@ func (a *AppController) Scale() {
 func (a *AppController) DeleteApp() {
 	//namespace := "default"
 	//service := a.Ctx.Input.Param(":service")
+	ip := a.Ctx.Request.Header.Get("Authorization")
+	//K8sBackend := models.NewBackendTLS(ip, "v1beta3")
 	var app = map[string]string{}
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &app)
 	if err != nil {
@@ -610,7 +688,7 @@ func (a *AppController) DeleteApp() {
 		return
 	}
 	appName := app["appName"]
-	a.deleteapp(appName)
+	a.deleteapp(ip, appName)
 	//K8sBackend.Applications(env.Name).Delete(appName)
 	//re := map[string]interface{}{}
 	//re["delete rc"] = result
@@ -620,13 +698,13 @@ func (a *AppController) DeleteApp() {
 
 }
 
-func (a *AppController) deleteapp(appName string) {
+func (a *AppController) deleteapp(ip string, appName string) {
 	namespace := "default"
 	appName = strings.ToLower(appName)
 	appName = strings.Replace(appName, ".", "", -1)
-	lib.Sendapi("DELETE", models.KubernetesIp, "8080", "v1", []string{"namespaces", namespace, "services", appName}, []byte{})
+	lib.Sendapi("DELETE", ip, "8080", "v1", []string{"namespaces", namespace, "services", appName}, []byte{})
 	//re["delete service"] = result
-	lib.Sendapi("DELETE", models.KubernetesIp, "8080", "v1", []string{"namespaces", namespace, "replicationcontrollers", appName}, []byte{})
+	lib.Sendapi("DELETE", ip, "8080", "v1", []string{"namespaces", namespace, "replicationcontrollers", appName}, []byte{})
 }
 
 // @Title get events
@@ -635,9 +713,24 @@ func (a *AppController) deleteapp(appName string) {
 // @router /events [get]
 func (a *AppController) GetEvents() {
 	//namespace := "default"
-	se := fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Pod"})
-	fmt.Println(se)
-	data, _ := K8sBackend.Events("default").List(nil, se)
+	ip := a.Ctx.Request.Header.Get("Authorization")
+	fmt.Println(ip)
+	K8sBackend, err := models.NewBackendTLS(ip, "v1beta3")
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	//K8sBackend := a.GetSession("backend").(*models.Backend)
+	//se := fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Pod"})
+	//fmt.Println(se)
+	data, err := K8sBackend.Events("default").List(nil, nil)
+	//data, err := K8sBackend.Services("default").List(nil)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
 	a.Data["json"] = data
 	a.ServeJson()
 }
@@ -648,11 +741,19 @@ func (a *AppController) GetEvents() {
 // @router /status [get]
 func (a *AppController) GetStatus() {
 	//namespace := "default"
+	ip := a.Ctx.Request.Header.Get("Authorization")
+	K8sBackend, _ := models.NewBackendTLS(ip, "v1beta3")
 	se := fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Pod"})
 	fmt.Println(se)
 	data, _ := K8sBackend.Nodes().List(nil, nil)
-
-	a.Data["json"] = data
+	for _, node := range data.Items {
+		if node.Status.Conditions[0].Type != api.NodeReady {
+			a.Data["json"] = map[string]string{"msg": "Not Ready"}
+			a.ServeJson()
+			return
+		}
+	}
+	a.Data["json"] = map[string]string{"msg": "Ready"}
 	a.ServeJson()
 }
 

@@ -10,20 +10,14 @@ import (
 )
 
 var (
-	UserList   map[string]*User
 	EtcdClient *etcd.Client
+	UserList   map[string]*User
 )
-
-func init() {
-	UserList = make(map[string]*User)
-	u := User{"user_abcd", "abcd", "123456", "0.0.0.0"}
-	UserList["user_abcd"] = &u
-	UserList["abcd"] = &u
-}
 
 type User struct {
 	Id       string
 	Username string
+	Company  string
 	Password string
 	Ip       string
 }
@@ -37,8 +31,8 @@ func (u User) Validate() error {
 	if u.Password == "" {
 		validationError = validationError.Append(ErrInvalidField{"password"})
 	}
-	if u.Ip == "" {
-		validationError = validationError.Append(ErrInvalidField{"Ip"})
+	if u.Company == "" {
+		validationError = validationError.Append(ErrInvalidField{"Company"})
 	}
 	if !validationError.Empty() {
 		return validationError
@@ -52,7 +46,7 @@ func AddUser(u User) (string, bool) {
 	if err == nil {
 		return "", true
 	}
-	UserList[u.Id] = &u
+	//UserList[u.Id] = &u
 	data, err := json.Marshal(u)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -79,10 +73,6 @@ func GetUser(uid string) (u *User, err error) {
 	return nil, errors.New("User not exists")
 }
 
-func GetAllUsers() map[string]*User {
-	return UserList
-}
-
 func UpdateUser(uid string, uu *User) (a *User, err error) {
 	u, err := GetUser(uid)
 	if err != nil {
@@ -97,8 +87,11 @@ func UpdateUser(uid string, uu *User) (a *User, err error) {
 	if uu.Ip != "" {
 		u.Ip = uu.Ip
 	}
+	if uu.Company != "" {
+		u.Company = uu.Company
+	}
 	data, err := json.Marshal(u)
-	fmt.Println(u.Username, u.Password, u.Ip)
+	//fmt.Println(u.Username, u.Password, u.Ip)
 	response, err := EtcdClient.Update("/users/"+uid, string(data), 0)
 	if err != nil {
 		return nil, err
@@ -112,23 +105,28 @@ func UpdateUser(uid string, uu *User) (a *User, err error) {
 }
 
 func Login(username, password string) (a *User, b bool) {
-	for _, u := range UserList {
-		if u.Username == username && u.Password == password {
-			return u, true
-		}
+	uid := "user_" + username
+	u, err := GetUser(uid)
+	fmt.Println(u)
+	fmt.Println(username, password)
+	if err != nil {
+		return nil, false
+	}
+	if u.Username == username && u.Password == password {
+		return u, true
 	}
 	return nil, false
 }
 
 func Auth(userid string) bool {
-	for _, u := range UserList {
-		if u.Id == userid {
-			return true
-		}
+	_, err := GetUser(userid)
+	if err != nil {
+		return false
 	}
-	return false
+	return true
 }
 
 func DeleteUser(uid string) {
-	delete(UserList, uid)
+	EtcdClient.Delete("/users/"+uid, false)
+	//delete(UserList, uid)
 }

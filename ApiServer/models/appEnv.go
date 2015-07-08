@@ -40,21 +40,21 @@ func (key AppEnv) Validate() error {
 
 	return nil
 }
-func AddAppEnv(env *AppEnv) error {
+func AddAppEnv(ip string, env *AppEnv) error {
 	data, _ := json.Marshal(env)
-	_, err := EtcdClient.Create("/envs/"+env.Name, string(data), 0)
+	_, err := EtcdClient.Create("/envs/"+ip+"/"+env.Name, string(data), 0)
 	//IdPools.CreateIdPool(env.Name)
 	if err != nil {
 		return err
 	}
-	err = IdPools.CreateIdPool(env.Name)
+	err = IdPools.CreateIdPool(ip, env.Name)
 	if err != nil {
 		return err
 	}
 	return nil
 }
-func GetAppEnv(envname string) (*AppEnv, error) {
-	response, err := EtcdClient.Get("/envs/"+envname, false, false)
+func GetAppEnv(ip string, envname string) (*AppEnv, error) {
+	response, err := EtcdClient.Get("/envs/"+ip+"/"+envname, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -66,13 +66,13 @@ func GetAppEnv(envname string) (*AppEnv, error) {
 
 	return &env, nil
 }
-func DeleteAppEnv(envname string) error {
-	_, err := EtcdClient.Delete("/envs/"+envname, false)
+func DeleteAppEnv(ip string, envname string) error {
+	_, err := EtcdClient.Delete("/envs/"+ip+"/"+envname, false)
 	return err
 
 }
-func GetAllAppEnv() ([]*AppEnv, error) {
-	response, err := EtcdClient.Get("/envs/", false, true)
+func GetAllAppEnv(ip string) ([]*AppEnv, error) {
+	response, err := EtcdClient.Get("/envs/"+ip, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -87,12 +87,12 @@ func GetAllAppEnv() ([]*AppEnv, error) {
 	}
 	return envs, nil
 }
-func UpdateAppEnv(envname string, env *AppEnv) error {
+func UpdateAppEnv(ip string, envname string, env *AppEnv) error {
 	data, err := json.Marshal(env)
 	if err != nil {
 		return err
 	}
-	_, err = EtcdClient.Update("/envs/"+env.Name, string(data), 0)
+	_, err = EtcdClient.Update("/envs/"+ip+"/"+env.Name, string(data), 0)
 	if err != nil {
 		return err
 	}

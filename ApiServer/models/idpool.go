@@ -10,8 +10,8 @@ var mutex = &sync.Mutex{}
 var IdPools IdPoolsInterface
 
 type IdPoolsInterface interface {
-	GetId(env string) (string, error)
-	CreateIdPool(env string) error
+	GetId(ip string, env string) (string, error)
+	CreateIdPool(ip string, env string) error
 }
 
 func NewIdPools() IdPoolsInterface {
@@ -25,20 +25,20 @@ func NewIdPools() IdPoolsInterface {
 type idpools struct {
 }
 
-func (pools *idpools) CreateIdPool(env string) error {
-	_, err := EtcdClient.Create("/idpools/"+env, "aaaaaaaaaaaaa", 0)
+func (pools *idpools) CreateIdPool(ip string, env string) error {
+	_, err := EtcdClient.Create("/idpools/"+ip+"/"+env, "aaaaaaaaaaaaa", 0)
 	return err
 
 }
-func (pools *idpools) GetId(env string) (string, error) {
+func (pools *idpools) GetId(ip string, env string) (string, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
-	response, err := EtcdClient.Get("/idpools/"+env, false, false)
+	response, err := EtcdClient.Get("/idpools/"+ip+"/"+env, false, false)
 	if err != nil {
 		return "", err
 	}
 	id := pools.next(response.Node.Value)
-	_, err = EtcdClient.Update("/idpools/"+env, id, 0)
+	_, err = EtcdClient.Update("/idpools/"+ip+"/"+env, id, 0)
 	if err != nil {
 		return "", err
 	}

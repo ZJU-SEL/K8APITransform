@@ -8,14 +8,18 @@ import (
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/labels"
 	//"io/ioutil"
 	//"errors"
+	"fmt"
 	"log"
 	//"net/http"
 	//"net/url"
 	//"path"
 )
 
+var PORT = ":8081"
+
 type Backend struct {
 	*client.Client
+	ip string
 }
 
 func NewBackend(host string, apiVersion string) (*Backend, error) {
@@ -23,21 +27,26 @@ func NewBackend(host string, apiVersion string) (*Backend, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Backend{Client}, nil
+	return &Backend{Client, host}, nil
 }
 
-func NewBackendTLS(host string, apiVersion string, certDir string) (*Backend, error) {
-
+func NewBackendTLS(ip string, apiVersion string) (*Backend, error) {
+	response, err := EtcdClient.Get("/iptohost/"+ip, false, false)
+	if err != nil {
+		return nil, err
+	}
+	host := response.Node.Value
+	fmt.Println(host)
 	config := &client.Config{
-		Host:    host,
+		Host:    "https://" + host + PORT,
 		Version: apiVersion,
 		TLSClientConfig: client.TLSClientConfig{
 			// Server requires TLS client certificate authentication
-			CertFile: certDir + "/server.crt",
+			//CertFile: certDir + "/server.crt",
 			// Server requires TLS client certificate authentication
-			KeyFile: certDir + "/server.key",
+			//KeyFile: certDir + "/server.key",
 			// Trusted root certificates for server
-			CAFile: certDir + "/ca.crt",
+			CAFile: "certs/" + host + "/ca.crt",
 		},
 		BearerToken: "abcdTOKEN1234",
 	}
@@ -46,7 +55,7 @@ func NewBackendTLS(host string, apiVersion string, certDir string) (*Backend, er
 	if err != nil {
 		return nil, err
 	}
-	return &Backend{Client}, nil
+	return &Backend{Client, ip}, nil
 
 }
 

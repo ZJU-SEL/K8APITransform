@@ -215,7 +215,7 @@ func Createdockerfile(username string, baseimage string, newimage string, warNam
 
 	Systemexec(modifybase)
 	//modifynew := `sed -i "s/newimage/` + username + "/" + newimage + "_deploy /" + `/g" ` + targetDocker
-	modifynew := `sed -i "s/newimage/` + applications + `\/cxy\/` + newimage + `_deploy\/` + warName + ` /g" ` + targetDocker
+	modifynew := `sed -i "s/newimage/` + applications + `\/` + username + `\/` + newimage + `_deploy\/` + warName + ` /g" ` + targetDocker
 
 	//newimage + "_deploy" + "/"
 

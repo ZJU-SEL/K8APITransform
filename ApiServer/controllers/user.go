@@ -22,8 +22,8 @@ type UserController struct {
 // @Param	body		body 	models.User	true		"body for user content"
 // @Success 200 {int} models.User.Id
 // @Failure 403 body is empty
-// @router / [post]
-func (u *UserController) Post() {
+// @router /register [post]
+func (u *UserController) Register() {
 	var user models.User
 
 	json.Unmarshal(u.Ctx.Input.RequestBody, &user)
@@ -48,15 +48,15 @@ func (u *UserController) Post() {
 	u.ServeJson()
 }
 
-// @Title Get
-// @Description get all Users
-// @Success 200 {object} models.User
-// @router / [get]
-func (u *UserController) GetAll() {
-	users := models.GetAllUsers()
-	u.Data["json"] = users
-	u.ServeJson()
-}
+//@Title Get
+//@Description get all Users
+//@Success 200 {object} models.User
+//@router / [get]
+//func (u *UserController) GetAll() {
+//	users := models.GetAllUsers()
+//	u.Data["json"] = users
+//	u.ServeJson()
+//}
 
 // @Title Get
 // @Description get user by uid
@@ -121,7 +121,6 @@ func (u *UserController) Delete() {
 // @Failure 500 user not exist
 // @router /login [post]
 func (u *UserController) Login() {
-
 	var user models.User
 	json.Unmarshal(u.Ctx.Input.RequestBody, &user)
 	fmt.Println(string(u.Ctx.Input.RequestBody))
@@ -133,30 +132,21 @@ func (u *UserController) Login() {
 	fmt.Println(password)
 	//ip := strings.Split(u.Ctx.Request.RemoteAddr, ":")[0]
 	if resuser, success := models.Login(username, password); success {
-		u.SetSession("user", resuser.Id)
-		response, _ := json.Marshal(resuser)
-		fmt.Println(string(response))
-		//resp, err := http.Get("http://" + models.KubernetesIp + ":8080/api/v1beta3/nodes/" + ip)
-		//if err != nil {
-		//	fmt.Println(err.Error())
-		//} else {
-		//	body, _ := ioutil.ReadAll(resp.Body)
-		//	var node = models.Node{}
-		//	json.Unmarshal(body, &node)
-		//	node.ObjectMeta.Labels = map[string]string{"namespace": username, "ip": ip}
-		//	body, _ = json.Marshal(node)
-		//	status, _ := lib.Sendapi("PUT", models.KubernetesIp, "8080", "v1beta3", []string{"nodes", ip}, body)
-		//	fmt.Println("add label status:" + strconv.Itoa(status))
-		//}
-		//u.Data["json"] = response
-		http.Error(u.Ctx.ResponseWriter, string(response)+"@login successful", 200)
+		u.SetSession("user", resuser.Username)
+		u.SetSession("ip", resuser.Ip)
+		backend, err := models.NewBackendTLS(resuser.Ip, models.ApiVersion)
+		if err != nil {
+			http.Error(u.Ctx.ResponseWriter, err.Error(), 500)
+			return
+		}
+		u.SetSession("backend", backend)
+		//response, _ := json.Marshal(resuser)
+		http.Error(u.Ctx.ResponseWriter, "login successful", 200)
 		return
-		//u.Data["json"] = "login successful"
 	} else {
-		http.Error(u.Ctx.ResponseWriter, "user not exist", 500)
+		http.Error(u.Ctx.ResponseWriter, "user or password not right", 500)
 		return
 	}
-	//u.ServeJson()
 }
 
 // @Title auth
@@ -190,6 +180,9 @@ func (u *UserController) Auth() {
 // @router /logout [get]
 func (u *UserController) Logout() {
 	u.DelSession("user")
+	//u.DelSession("user")
+	u.DelSession("ip")
+	u.DelSession("backend")
 	u.Data["json"] = "logout success"
 	u.ServeJson()
 }

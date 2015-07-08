@@ -21,17 +21,17 @@ func init() {
 				&controllers.AppController{},
 			),
 		),
-		beego.NSNamespace("/user",
-			beego.NSInclude(
-				&controllers.UserController{},
-			),
-		),
+		//beego.NSNamespace("/user",
+		//	beego.NSInclude(
+		//		&controllers.UserController{},
+		//	),
+		//),
 		beego.NSNamespace("/s",
 			beego.NSInclude(
 				&controllers.BaseimageController{},
 			),
 		),
-		//beego.NSPost("/namespaces/:namespace/upload/:appname", controllers.Appuploadandtoimage),
+		//beego.NSPost("/namespaces/:namespace/upload/:appname", controllers.SetUserip),
 		//beego.NSGet("/baseimage/search", controllers.Baseimagelist),
 		//beego.NSGet("/baseimage/pull/:imagename", controllers.Baseimagepull),
 	)

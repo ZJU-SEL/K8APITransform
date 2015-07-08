@@ -22,6 +22,13 @@ func init() {
 
 	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppController"],
 		beego.ControllerComments{
+			"Checkuser",
+			`/checkuser`,
+			[]string{"post"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppController"],
+		beego.ControllerComments{
 			"Upload",
 			`/upload`,
 			[]string{"post"},
@@ -295,16 +302,9 @@ func init() {
 
 	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
 		beego.ControllerComments{
-			"Post",
-			`/`,
+			"Register",
+			`/register`,
 			[]string{"post"},
-			nil})
-
-	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
-		beego.ControllerComments{
-			"GetAll",
-			`/`,
-			[]string{"get"},
 			nil})
 
 	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:UserController"],
