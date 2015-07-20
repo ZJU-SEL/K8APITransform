@@ -25,12 +25,6 @@ func (key AppEnv) Validate() error {
 	if key.JdkV == "" {
 		validationError = validationError.Append(ErrInvalidField{"JdkV"})
 	}
-	/*
-		if len(key.Ports) == 0 {
-			validationError = validationError.Append(ErrInvalidField{"Ports"})
-		}
-	*/
-
 	if key.Name == "" {
 		validationError = validationError.Append(ErrInvalidField{"Name"})
 	}

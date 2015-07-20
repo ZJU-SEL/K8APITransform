@@ -21,6 +21,11 @@ func init() {
 				&controllers.AppController{},
 			),
 		),
+		beego.NSNamespace("/env",
+			beego.NSInclude(
+				&controllers.EnvController{},
+			),
+		),
 		//beego.NSNamespace("/user",
 		//	beego.NSInclude(
 		//		&controllers.UserController{},

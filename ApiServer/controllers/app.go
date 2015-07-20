@@ -45,7 +45,6 @@ func NewIntOrStringFromInt(val int) models.IntOrString {
 
 // @router /createEnv [post]
 func (a *AppController) CreateEnv() {
-	log.Println("REQUEST BODY :" + string(a.Ctx.Input.RequestBody))
 	ip := a.Ctx.Request.Header.Get("Authorization")
 	var env models.AppEnv
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &env)
@@ -400,7 +399,7 @@ func (a *AppController) Deploy() {
 	//dockerdeamon := "http://10.211.55.10:2376"
 	//dockerdeamon := DockerBuilddeamon
 	dockerdeamon := "http://" + ip + ":2376"
-	imageprefix := "cxy" + "reg:5000"
+	imageprefix := "k8master" + "reg:5000"
 
 	//deployReq imagename string, uploaddir string) error
 	//dockerdeamon := "unix:///var/run/docker.sock"
