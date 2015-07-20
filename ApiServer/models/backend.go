@@ -46,7 +46,7 @@ func NewBackendTLS(ip string, apiVersion string) (*Backend, error) {
 			// Server requires TLS client certificate authentication
 			//KeyFile: certDir + "/server.key",
 			// Trusted root certificates for server
-			CAFile: "certs/" + host + "/ca.crt",
+			CAFile: "certs/" + ip + "/ca.crt",
 		},
 		BearerToken: "abcdTOKEN1234",
 	}
@@ -63,7 +63,7 @@ func (c *Backend) Applications(env string) ApplicationInterface {
 	return newApplications(c, env)
 }
 
-func (c *Backend) Podip(sename string) ([]string, error) {
+func (c *Backend) Podip(clusterip, sename string) ([]string, error) {
 	namespace := "default"
 	//todo : get info from the sys dynamically
 	port := "8080"
@@ -119,7 +119,7 @@ func (c *Backend) Podip(sename string) ([]string, error) {
 	for _, podip := range iplist {
 		//serviceipmap[podip] = serviceip
 		//store the info into etcd
-		err := AddPodtoSe(podip, serviceip)
+		err := AddPodtoSe(clusterip, podip, serviceip)
 		//return nil, err
 		if err != nil {
 			return nil, err

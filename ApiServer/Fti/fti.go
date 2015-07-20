@@ -13,6 +13,7 @@ import (
 	"log"
 	"os/exec"
 	"strings"
+	//"strings"
 )
 
 const (
@@ -210,7 +211,11 @@ func Createdockerfile(username string, baseimage string, newimage string, warNam
 
 	defer src.Close()
 	defer dst.Close()
-
+	warDir := strings.TrimSuffix(warName, ".war")
+	modifywardir := `sed -i "s/warDir/` + warDir + `/g" ` + targetDocker
+	Systemexec(modifywardir)
+	modifywarName := `sed -i "s/warName/` + warName + `/g" ` + targetDocker
+	Systemexec(modifywarName)
 	modifybase := `sed -i "s/baseimage/` + baseimage + `/g" ` + targetDocker
 
 	Systemexec(modifybase)
@@ -272,9 +277,11 @@ func Wartoimage(dockerdeamon string, imageprefix string, username string, baseim
 	//	Email:         "w_hessen@126.com",
 	//	ServerAddress: "https://10.211.55.5",
 	}
+	//info := strings.Split(baseimage, ":")
+	base := imageprefix + `/apm-jre7-tomcat7`
 	opts := docker.BuildImageOptions{
 
-		Name:         imageprefix + "/" + strings.ToLower(newimage),
+		Name:         base + ":" + newimage,
 		InputStream:  tarStream,
 		OutputStream: os.Stdout,
 		Auth:         auth,
@@ -289,18 +296,21 @@ func Wartoimage(dockerdeamon string, imageprefix string, username string, baseim
 	}
 
 	pushopts := docker.PushImageOptions{
-		Name:         newimage,
-		Tag:          "latest",
+		Name:         base,
+		Tag:          newimage,
 		Registry:     imageprefix,
 		OutputStream: os.Stdout,
 	}
 
-	client.PushImage(pushopts, auth)
+	err = client.PushImage(pushopts, auth)
+	if err != nil {
+		return "", err
 
+	}
 	//send the image to the private registry
 	//pushcommand := `docker push ` + imageprefix + "/" + strings.ToLower(newimage)
 	//Systemexec(pushcommand)
-	return strings.ToLower(newimage), nil
+	return base + ":" + newimage, nil
 }
 
 // 检查文件或目录是否存在

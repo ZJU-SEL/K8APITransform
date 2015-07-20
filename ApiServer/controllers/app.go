@@ -4,15 +4,16 @@ import (
 	"K8APITransform/ApiServer/Fti"
 	"K8APITransform/ApiServer/lib"
 	"K8APITransform/ApiServer/models"
+	"crypto/tls"
 	"encoding/json"
-
 	"fmt"
 	//"io/ioutil"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/fields"
+	//"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
+	//"github.com/GoogleCloudPlatform/kubernetes/pkg/fields"
+	//"bufio"
 	"io/ioutil"
 	"log"
-	"net/url"
+	//"net/url"
 	"strconv"
 	"strings"
 	//"K8APITransform/ApiServer/backend"
@@ -44,6 +45,7 @@ func NewIntOrStringFromInt(val int) models.IntOrString {
 
 // @router /createEnv [post]
 func (a *AppController) CreateEnv() {
+	log.Println("REQUEST BODY :" + string(a.Ctx.Input.RequestBody))
 	ip := a.Ctx.Request.Header.Get("Authorization")
 	var env models.AppEnv
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &env)
@@ -65,6 +67,9 @@ func (a *AppController) CreateEnv() {
 		return
 	}
 	detail := &models.Detail{Name: env.Name, Status: 1, NodeType: 1, Context: []models.Detail{}, Children: []models.Detail{}}
+	detail.Cpu = env.Cpu
+	detail.Memory = env.Memory
+	detail.Storage = env.Storage
 	detail.Children = append(detail.Children, models.Detail{
 		Name:     "Nginx",
 		Status:   1,
@@ -129,7 +134,7 @@ func (a *AppController) Getuploadwars() {
 			filename = strings.TrimRight(filename, ".war")
 			fileinfo = strings.Split(filename, "-")
 			version := fileinfo[len(fileinfo)-1]
-			warname := strings.TrimRight(filename, "-"+version) + ".war"
+			warname := strings.TrimSuffix(filename, "-"+version) + ".war"
 			data := `{"id": 1,"name": "` + warname + `","nodeType": 0,"resource": [{"name": "app_version","value": "` + version + `"}]}`
 			mapdata := map[string]interface{}{}
 			json.Unmarshal([]byte(data), &mapdata)
@@ -145,6 +150,38 @@ func (a *AppController) Getuploadwars() {
 	a.ServeJson()
 }
 
+// @Title DeleteUploadWars
+// @Description DeleteUploadWars
+
+// @router /deleteuploadwars [delete]
+func (a *AppController) DeleteUploadwars() {
+	ip := a.Ctx.Request.Header.Get("Authorization")
+	var warinfo = map[string]string{}
+
+	err := json.Unmarshal(a.Ctx.Input.RequestBody, &warinfo)
+	log.Println(warinfo)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	prefix := strings.TrimSuffix(warinfo["warName"], ".war")
+	err = os.RemoveAll("applications/" + ip + "/" + prefix + "-" + warinfo["version"] + ".war" + "_deploy")
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	err = os.RemoveAll("applications/" + ip + "/" + prefix + "-" + warinfo["version"] + ".war" + "_tar")
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	a.Data["json"] = map[string]string{"msg": "SUCCESS"}
+	a.ServeJson()
+}
+
 // @Title checkUser
 // @Description checkuser and store the ca.crt
 // @router /checkuser [post]
@@ -156,54 +193,94 @@ func (a *AppController) Checkuser() {
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
-	username := clusterinfo["username"]
-	password := clusterinfo["password"]
-	masterip := clusterinfo["masterip"]
+	//fmt.Println(clusterinfo)
+	username := clusterinfo["userName"]
+	//password := clusterinfo["password"]
+	masterip := clusterinfo["masterIp"]
 	cafile := clusterinfo["cacrt"]
+	//cloudName := clusterinfo["cloudName"]
 	//send the info to the node.js backend
-	client := &http.Client{}
-	data := url.Values{}
-	data.Add("userName", username)
-	data.Add("password", password)
-	data.Add("masterIp", masterip)
-	fmt.Println(data)
-	resp, err := client.PostForm("http://10.10.105.135:8800/user/checkAndUpdate", data)
+	//client := &http.Client{}
+	//data := url.Values{}
+	//data.Add("userName", username)
+	//data.Add("password", password)
+	//data.Add("masterIp", masterip)
+	//fmt.Println(data)
+	//resp, err := client.PostForm("http://10.10.105.135:8800/user/checkAndUpdate", data)
+	//if err != nil {
+	//	a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+	//	http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+	//	return
+	//}
+	//defer resp.Body.Close()
+
+	//body, _ := ioutil.ReadAll(resp.Body)
+	//fmt.Println(string(body))
+	//body = []byte("true")
+	//if strings.Contains(string(body), "true") {
+	//store the ca.crt into the file into certs/ip:port/ca.crt
+	//create the ca.crt certs/ip:port/ca.crt
+	//write the string in to the ca.crt
+	data := []byte(cafile)
+	filename := "certs/" + masterip + "/ca.crt"
+	os.Mkdir("certs/"+masterip, 0777)
+	err = ioutil.WriteFile(filename, data, 0666)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
-	defer resp.Body.Close()
 
-	body, _ := ioutil.ReadAll(resp.Body)
-	fmt.Println(string(body))
-	//body = []byte("true")
-	if strings.Contains(string(body), "true") {
-		//store the ca.crt into the file into certs/ip:port/ca.crt
-		//create the ca.crt certs/ip:port/ca.crt
-		//write the string in to the ca.crt
-		data := []byte(cafile)
-		filename := "certs/" + username + "/ca.crt"
-		os.Mkdir("certs/"+username, 0777)
-		err := ioutil.WriteFile(filename, data, 0666)
-		if err != nil {
-			a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
-			http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
-			return
-		}
-
-		// add the info into the /etc/hosts
-		//echo masterip username >> /etc/hosts
-		command := "echo " + masterip + " " + username + ">> /etc/hosts"
-		models.EtcdClient.Create("/iptohost/"+masterip, username, 0)
-		Fti.Systemexec(command)
-		a.Ctx.ResponseWriter.WriteHeader(200)
-		return
-	} else {
+	// add the info into the /etc/hosts
+	//echo masterip username >> /etc/hosts
+	//command := "echo " + masterip + " " + username + ">>
+	filedata, err := ioutil.ReadFile("/etc/hosts")
+	//fmt.Println(filedata)
+	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
-		http.Error(a.Ctx.ResponseWriter, `{"errorMessage: check fail}`, 406)
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
+	lines := strings.Split(string(filedata), string(10))
+	for _, v := range lines {
+		fmt.Println(v)
+	}
+	//fmt.Println(lines)
+	//fmt.Println(len(lines))
+	//ret := make([]string, len(lines))
+	ret := []string{}
+	//has := 0
+	for _, v := range lines {
+		if v != "" && !strings.Contains(v, username) && !strings.Contains(v, masterip) {
+			ret = append(ret, v)
+			//fmt.Println(v)
+		}
+	}
+	fmt.Println(strings.Join(ret, ",\n"))
+	ret = append(ret, masterip+" "+username)
+	back := strings.Join(ret, "\n")
+	//fmt.Println(back)
+	err = ioutil.WriteFile("/etc/hosts", []byte(back), 0777)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	//bufio.NewReader()
+	//Fti.Systemexec(command)
+	_, err = models.EtcdClient.Get("/iptohost/"+masterip, false, false)
+	if err != nil {
+		models.EtcdClient.Create("/iptohost/"+masterip, username, 0)
+	} else {
+		models.EtcdClient.Update("/iptohost/"+masterip, username, 0)
+	}
+	a.Ctx.ResponseWriter.WriteHeader(200)
+	//return
+	//} else {
+	//	a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+	//	http.Error(a.Ctx.ResponseWriter, `{"errorMessage: check fail}`, 406)
+	//	return
+	//}
 
 }
 
@@ -254,14 +331,18 @@ func (a *AppController) Upload() {
 
 // @Title deploy
 // @Description deploy
-
 // @router /deploy [post]
 func (a *AppController) Deploy() {
 	namespace := "default"
 	ip := a.Ctx.Request.Header.Get("Authorization")
-	K8sBackend, _ := models.NewBackendTLS(ip, "v1beta3") //a.GetSession("backend").(*models.Backend)
+	K8sBackend, err := models.NewBackendTLS(ip, "v1beta3")
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
 	deployReq := models.DeployRequest{}
-	err := json.Unmarshal(a.Ctx.Input.RequestBody, &deployReq)
+	err = json.Unmarshal(a.Ctx.Input.RequestBody, &deployReq)
 	log.Println(deployReq)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
@@ -317,12 +398,13 @@ func (a *AppController) Deploy() {
 	//deployReq imagename string, uploaddir string) error
 	//dockerdeamon := "unix:///var/run/docker.sock"
 	//dockerdeamon := "http://10.211.55.10:2376"
-	dockerdeamon := DockerBuilddeamon
+	//dockerdeamon := DockerBuilddeamon
+	dockerdeamon := "http://" + ip + ":2376"
 	imageprefix := "cxy" + "reg:5000"
 
 	//deployReq imagename string, uploaddir string) error
 	//dockerdeamon := "unix:///var/run/docker.sock"
-	baseimage := "jre7" + "-" + "tomcat7"
+	baseimage := imageprefix + `\/apm-jre7-tomcat7:v4`
 	//baseimage = env.JdkV + "-" + env.TomcatV
 	//baseimage := "jre" + strconv(env.JdkV) + "-" + "tomcat" + strconv(env.TomcatV)
 	newimage, err = Fti.Wartoimage(dockerdeamon, imageprefix, username, baseimage, newimage, warName)
@@ -332,7 +414,7 @@ func (a *AppController) Deploy() {
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
-	imagename := imageprefix + "/" + newimage
+	imagename := newimage
 	log.Println("newimage:", imagename)
 
 	//imagename := "7-jre-customize"
@@ -358,7 +440,7 @@ func (a *AppController) Deploy() {
 			},
 		},
 		Cpu:            env.Cpu,
-		Memery:         env.Memery,
+		Memory:         env.Memory,
 		Storage:        env.Storage,
 		Containername:  env.Name,
 		Containerimage: imagename,
@@ -400,11 +482,35 @@ func (a *AppController) Deploy() {
 // @Title get partDetails
 // @Description get partDetails
 
+// @router /test [get]
+func (a *AppController) Test() {
+	namespace := "default"
+	ip := a.Ctx.Request.Header.Get("Authorization")
+	K8sBackend, _ := models.NewBackendTLS(ip, "v1beta3")
+	label := map[string]string{}
+	label["env"] = "test"
+	serviceslist, err := K8sBackend.Services(namespace).List(labels.SelectorFromSet(label))
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	a.Data["json"] = serviceslist
+	a.ServeJson()
+}
+
+// @Title get partDetails
+// @Description get partDetails
 // @router /partDetails [get]
 func (a *AppController) PartDetails() {
 	//a.ParseForm()
 	ip := a.Ctx.Request.Header.Get("Authorization")
-	K8sBackend, _ := models.NewBackendTLS(ip, "v1beta3")
+	K8sBackend, err := models.NewBackendTLS(ip, "v1beta3")
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
 	//K8sBackend := a.GetSession("backend").(*models.Backend)
 	envName := a.GetString("envName")
 	log.Println(envName)
@@ -509,7 +615,12 @@ func (a *AppController) PartDetails() {
 // @router /details [get]
 func (a *AppController) Details() {
 	ip := a.Ctx.Request.Header.Get("Authorization")
-	K8sBackend, _ := models.NewBackendTLS(ip, "v1beta3")
+	K8sBackend, err := models.NewBackendTLS(ip, "v1beta3")
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
 	envs, err := models.GetAllAppEnv(ip)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
@@ -531,10 +642,15 @@ func (a *AppController) Details() {
 // @router /restartApp [post]
 func (a *AppController) RestartApp() {
 	ip := a.Ctx.Request.Header.Get("Authorization")
-	K8sBackend, _ := models.NewBackendTLS(ip, "v1beta3")
+	K8sBackend, err := models.NewBackendTLS(ip, "v1beta3")
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
 	//namespace := "default"
 	req := map[string]string{}
-	err := json.Unmarshal(a.Ctx.Input.RequestBody, &req)
+	err = json.Unmarshal(a.Ctx.Input.RequestBody, &req)
 	//log.Println(deployReq)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
@@ -583,9 +699,22 @@ func (a *AppController) GetEnv() {
 // @router /deleteEnv/:envname [delete]
 func (a *AppController) DeleteEnv() {
 	ip := a.Ctx.Request.Header.Get("Authorization")
+	K8sBackend, err := models.NewBackendTLS(ip, "v1beta3")
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
 	name := a.Ctx.Input.Param(":envname")
-	err := models.DeleteAppEnv(ip, name)
+	err = models.DeleteAppEnv(ip, name)
+
 	//env, err := models.GetAppEnv(name)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	K8sBackend.Applications(name).DeleteAll()
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
@@ -600,10 +729,15 @@ func (a *AppController) DeleteEnv() {
 // @router /podsip/:sename [get]
 func (a *AppController) Getpodsip() {
 	ip := a.Ctx.Request.Header.Get("Authorization")
-	K8sBackend, _ := models.NewBackendTLS(ip, "v1beta3")
+	K8sBackend, err := models.NewBackendTLS(ip, "v1beta3")
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
 	sename := a.Ctx.Input.Param(":sename")
 	log.Println(sename)
-	iplist, err := K8sBackend.Podip(sename)
+	iplist, err := K8sBackend.Podip(ip, sename)
 	if err != nil {
 		log.Println(err.Error())
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
@@ -618,19 +752,23 @@ func (a *AppController) Getpodsip() {
 // @Title getservice
 // @Description getservice
 // @router /serviceip/:podip [get]
-func (a *AppController) Getseip() error {
-	//get
+func (a *AppController) Getseip() {
+	ip := a.Ctx.Request.Header.Get("Authorization")
 	podip := a.Ctx.Input.Param(":podip")
+	fmt.Println(podip)
 	//todo:watch the etcd
 	//seip := serviceipmap[podip]
-	seip, err := models.GetPodtoSe(podip)
+	seip, err := models.GetPodtoSe(ip, podip)
 	if err != nil {
-		return err
+		log.Println(err.Error())
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
 	}
 	a.Data["json"] = seip
 	a.ServeJson()
 
-	return nil
+	//return nil
 }
 
 // @Title ScaleApp
@@ -644,24 +782,30 @@ func (a *AppController) Getseip() error {
 func (a *AppController) Scale() {
 	//namespace := "default"
 	ip := a.Ctx.Request.Header.Get("Authorization")
-	K8sBackend, _ := models.NewBackendTLS(ip, "v1beta3")
+	K8sBackend, err := models.NewBackendTLS(ip, "v1beta3")
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
 	var appScale models.AppScale
-	err := json.Unmarshal(a.Ctx.Input.RequestBody, &appScale)
+	fmt.Println(string(a.Ctx.Input.RequestBody))
+	err = json.Unmarshal(a.Ctx.Input.RequestBody, &appScale)
 
-	log.Println(appScale.Num)
+	fmt.Println(appScale.Num)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
 	replicas, _ := strconv.Atoi(appScale.Num)
-	err = K8sBackend.Applications(appScale.EnvName).Update(appScale.Name, replicas)
+	datails, err := K8sBackend.Applications(appScale.EnvName).Update(appScale.Name, replicas)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
-	a.Data["json"] = map[string]string{"msg": "SUCCESS"}
+	a.Data["json"] = datails
 	a.ServeJson()
 }
 
@@ -671,14 +815,19 @@ func (a *AppController) Scale() {
 // @Param	service		path 	string	true		"The key for name"
 // @Success 200 {string} "create success"
 // @Failure 403 body is empty
-// @router /delete [delete]
+// @router /deleteApp [delete]
 func (a *AppController) DeleteApp() {
 	//namespace := "default"
 	//service := a.Ctx.Input.Param(":service")
 	ip := a.Ctx.Request.Header.Get("Authorization")
-	//K8sBackend := models.NewBackendTLS(ip, "v1beta3")
+	K8sBackend, err := models.NewBackendTLS(ip, "v1beta3")
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
 	var app = map[string]string{}
-	err := json.Unmarshal(a.Ctx.Input.RequestBody, &app)
+	err = json.Unmarshal(a.Ctx.Input.RequestBody, &app)
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
@@ -692,8 +841,9 @@ func (a *AppController) DeleteApp() {
 		return
 	}
 	appName := app["appName"]
-	a.deleteapp(ip, appName)
-	//K8sBackend.Applications(env.Name).Delete(appName)
+	envName := strings.Split(appName, "-")[0]
+	//a.deleteapp(ip, appName)
+	K8sBackend.Applications(envName).Delete(appName)
 	//re := map[string]interface{}{}
 	//re["delete rc"] = result
 	//delete(models.Appinfo[namespace], service)
@@ -704,8 +854,9 @@ func (a *AppController) DeleteApp() {
 
 func (a *AppController) deleteapp(ip string, appName string) {
 	namespace := "default"
-	appName = strings.ToLower(appName)
-	appName = strings.Replace(appName, ".", "", -1)
+	//K8sBackend := models.NewBackendTLS(ip, "v1beta3")
+	//appName = strings.ToLower(appName)
+	//appName = strings.Replace(appName, ".", "", -1)
 	lib.Sendapi("DELETE", ip, "8080", "v1", []string{"namespaces", namespace, "services", appName}, []byte{})
 	//re["delete service"] = result
 	lib.Sendapi("DELETE", ip, "8080", "v1", []string{"namespaces", namespace, "replicationcontrollers", appName}, []byte{})
@@ -739,25 +890,107 @@ func (a *AppController) GetEvents() {
 	a.ServeJson()
 }
 
-// @Title get status
-// @Description get status
+//// @Title get status
+//// @Description get status
 
-// @router /status [get]
-func (a *AppController) GetStatus() {
-	//namespace := "default"
+//// @router /status [get]
+//func (a *AppController) GetStatus() {
+//	//namespace := "default"
+//	ip := a.Ctx.Request.Header.Get("Authorization")
+//	K8sBackend, _ := models.NewBackendTLS(ip, "v1beta3")
+//	se := fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Pod"})
+//	fmt.Println(se)
+//	data, _ := K8sBackend.Nodes().List(nil, nil)
+//	for _, node := range data.Items {
+//		if node.Status.Conditions[0].Type != api.NodeReady {
+//			a.Data["json"] = map[string]string{"msg": "Not Ready"}
+//			a.ServeJson()
+//			return
+//		}
+//	}
+//	a.Data["json"] = map[string]string{"msg": "Ready"}
+//	a.ServeJson()
+//}
+
+// @Title get node status
+// @Description get node status
+// @router /nodestatus [get]
+func (a *AppController) NodeStatus() {
 	ip := a.Ctx.Request.Header.Get("Authorization")
-	K8sBackend, _ := models.NewBackendTLS(ip, "v1beta3")
-	se := fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Pod"})
-	fmt.Println(se)
-	data, _ := K8sBackend.Nodes().List(nil, nil)
-	for _, node := range data.Items {
-		if node.Status.Conditions[0].Type != api.NodeReady {
-			a.Data["json"] = map[string]string{"msg": "Not Ready"}
-			a.ServeJson()
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	request, err := http.NewRequest("GET", "https://"+ip+":50000/api/cluster/status", nil)
+	request.Header.Set("token", "qwertyuiopasdfghjklzxcvbnm1234567890")
+	response, err := client.Do(request)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	defer response.Body.Close()
+	body, _ := ioutil.ReadAll(response.Body)
+	//fmt.Println(string(body))
+	var w = map[string]interface{}{}
+	json.Unmarshal(body, &w)
+	a.Data["json"] = w
+	a.ServeJson()
+}
+
+// @Title get app status
+// @Description get app status
+// @router /appstatus [post]
+func (a *AppController) AppStatus() {
+	ip := a.Ctx.Request.Header.Get("Authorization")
+	K8sBackend, err := models.NewBackendTLS(ip, "v1beta3")
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	var input = map[string]string{}
+	err = json.Unmarshal(a.Ctx.Input.RequestBody, &input)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	//envName := input["envName"]
+	appName := input["appName"]
+	fmt.Println(appName)
+	podslist, err := K8sBackend.Pods("default").List(labels.SelectorFromSet(map[string]string{"name": appName}), nil)
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	var output = []interface{}{}
+	for _, pod := range podslist.Items {
+		if len(pod.Status.ContainerStatuses) == 0 || pod.Status.ContainerStatuses[0].ContainerID == "" {
+			continue
+		}
+		id := pod.Status.ContainerStatuses[0].ContainerID
+
+		id = strings.TrimPrefix(id, "docker://")
+		fmt.Println(id)
+		request, err := http.NewRequest("GET", "https://"+ip+":50000/api/container/status", nil)
+		request.Header.Set("token", "qwertyuiopasdfghjklzxcvbnm1234567890")
+		request.Header.Set("container", id)
+		response, err := client.Do(request)
+		if err != nil {
+			a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+			http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 			return
 		}
+		defer response.Body.Close()
+		body, _ := ioutil.ReadAll(response.Body)
+		//fmt.Println(string(body))
+		var w = map[string]interface{}{}
+		json.Unmarshal(body, &w)
+		output = append(output, w)
 	}
-	a.Data["json"] = map[string]string{"msg": "Ready"}
+
+	a.Data["json"] = output
 	a.ServeJson()
 }
 

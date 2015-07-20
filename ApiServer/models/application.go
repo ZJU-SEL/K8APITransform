@@ -5,6 +5,7 @@ import (
 	"fmt"
 	api "github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/api/resource"
+	"sort"
 	"strconv"
 	//"github.com/GoogleCloudPlatform/kubernetes/pkg/client"
 	"errors"
@@ -23,12 +24,34 @@ type ApplicationInterface interface {
 	List() (*Detail, error)
 	Get(name string) (*Detail, error)
 	Delete(name string) error
+	DeleteAll() error
 	Create(app AppCreateRequest) (*Detail, error)
-	Update(name string, replicas int) error
+	Update(name string, replicas int) (*Detail, error)
 	Restart(name string) error
 	//Watch(label labels.Selector, field fields.Selector, resourceVersion string) (watch.Interface, error)
 	//Bind(binding *api.Binding) error
 	//UpdateStatus(pod *api.Pod) (*api.Pod, error)
+}
+type Services struct {
+	api.ServiceList
+}
+
+func (list *Services) Len() int {
+	return len(list.Items)
+}
+
+func (list *Services) Less(i, j int) bool {
+	if list.Items[i].ObjectMeta.CreationTimestamp.Unix() > list.Items[j].ObjectMeta.CreationTimestamp.Unix() {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (list *Services) Swap(i, j int) {
+	var temp = list.Items[i]
+	list.Items[i] = list.Items[j]
+	list.Items[j] = temp
 }
 
 // pods implements PodsNamespacer interface
@@ -78,8 +101,8 @@ func (a *applications) Create(app AppCreateRequest) (*Detail, error) {
 		}
 		containers[0].Resources.Limits[api.ResourceCPU] = *cores
 	}
-	if app.Memery != "" {
-		memorySize, err := resource.ParseQuantity(app.Memery)
+	if app.Memory != "" {
+		memorySize, err := resource.ParseQuantity(app.Memory)
 		if err != nil {
 			return nil, err
 		}
@@ -146,8 +169,9 @@ func (a *applications) Create(app AppCreateRequest) (*Detail, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	t := time.After(time.Second * 10)
+	fmt.Println(rc)
+	fmt.Println(service)
+	t := time.After(time.Minute)
 A:
 	for {
 		select {
@@ -159,20 +183,20 @@ A:
 		default:
 			//log.Println("logout:", <-timeout)
 			sename := service.ObjectMeta.Labels["name"]
-			podslist, err := a.b.Podip(sename)
-			if err != nil {
+			podslist, err := a.b.Podip(a.b.ip, sename)
+			if err == nil {
+				if len(podslist) == 0 {
+					continue
+				} else {
+					log.Println("allocation ok ......")
+					break A
+				}
+			} else {
 				log.Println(err.Error())
 				return nil, errors.New(`{"errorMessage":"` + err.Error() + `"}`)
 				//delayok <- 0
 				break A
 			}
-			if len(podslist) == 0 {
-				continue
-			} else {
-				log.Println("allocation ok ......")
-				break A
-			}
-
 		}
 	}
 
@@ -183,7 +207,12 @@ A:
 
 func (a *applications) List() (*Detail, error) {
 	label := map[string]string{"env": a.env}
-	serviceslist, err := a.b.Services("default").List(labels.SelectorFromSet(label))
+	services, err := a.b.Services("default").List(labels.SelectorFromSet(label))
+	if err != nil {
+		return nil, err
+	}
+	var serviceslist = &Services{*services}
+	sort.Sort(serviceslist)
 	fmt.Println("get servicelists")
 	if err != nil {
 		return nil, err
@@ -192,7 +221,11 @@ func (a *applications) List() (*Detail, error) {
 	if err != nil {
 		return nil, err
 	}
-	detail := &Detail{Name: a.env, Status: 1, NodeType: 1, Context: []Detail{}, Children: []Detail{}}
+	e, err := GetAppEnv(a.b.ip, a.env)
+	if err != nil {
+		return nil, err
+	}
+	detail := &Detail{Name: a.env, Cpu: e.Cpu, Memory: e.Memory, Storage: e.Storage, Status: 1, NodeType: 1, Context: []Detail{}, Children: []Detail{}}
 	detail.Children = append(detail.Children, Detail{
 		Name:     "Nginx",
 		Status:   1,
@@ -206,7 +239,7 @@ func (a *applications) List() (*Detail, error) {
 	})
 	tomcat := Detail{Name: "tomcat", Status: 1, NodeType: 2, Context: []Detail{}, Children: []Detail{}}
 	if len(podslist.Items) == 0 {
-		e, _ := EtcdClient.Get("envs/"+a.env, false, false)
+		e, _ := EtcdClient.Get("envs/"+a.b.ip+"/"+a.env, false, false)
 		e_tmp := AppEnv{}
 		json.Unmarshal([]byte(e.Node.Value), &e_tmp)
 		num, _ := strconv.Atoi(e_tmp.NodeNum)
@@ -264,7 +297,11 @@ func (a *applications) Get(name string) (*Detail, error) {
 	if err != nil {
 		return nil, err
 	}
-	detail := &Detail{Name: a.env, Status: 1, NodeType: 1, Context: []Detail{}, Children: []Detail{}}
+	e, err := GetAppEnv(a.b.ip, a.env)
+	if err != nil {
+		return nil, err
+	}
+	detail := &Detail{Name: a.env, Cpu: e.Cpu, Memory: e.Memory, Storage: e.Storage, Status: 1, NodeType: 1, Context: []Detail{}, Children: []Detail{}}
 	detail.Children = append(detail.Children, Detail{
 		Name:     "Nginx",
 		Status:   1,
@@ -320,24 +357,43 @@ func (a *applications) Delete(name string) error {
 	if err != nil {
 		return err
 	}
-	for _, v := range rclist.Items {
-		a.b.ReplicationControllers("default").Delete(v.ObjectMeta.Name)
-	}
-	return nil
-}
-func (a *applications) Update(name string, replicas int) error {
-	rclist, err := a.b.ReplicationControllers("default").List(labels.SelectorFromSet(map[string]string{"name": name}))
+	_, err = a.Update(name, 0)
 	if err != nil {
 		return err
 	}
+	for _, v := range rclist.Items {
+		a.b.ReplicationControllers("default").Delete(v.ObjectMeta.Name)
+	}
+
+	return nil
+}
+func (a *applications) Update(name string, replicas int) (*Detail, error) {
+	rclist, err := a.b.ReplicationControllers("default").List(labels.SelectorFromSet(map[string]string{"name": name}))
+	if err != nil {
+		return nil, err
+	}
 	if len(rclist.Items) != 1 {
-		return ErrResponse{fmt.Sprintf("a app with %d services", len(rclist.Items))}
+		return nil, ErrResponse{fmt.Sprintf("a app with %d services", len(rclist.Items))}
 	}
 	rc := rclist.Items[0]
 	rc.Spec.Replicas = replicas
 	_, err = a.b.ReplicationControllers("default").Update(&rc)
 	if err != nil {
+		return nil, err
+	}
+	return a.List()
+}
+func (a *applications) DeleteAll() error {
+	sevicelist, err := a.b.Services("default").List(labels.SelectorFromSet(map[string]string{"env": a.env}))
+	if err != nil {
 		return err
+	}
+	for _, v := range sevicelist.Items {
+		name := v.ObjectMeta.Labels["name"]
+		err = a.Delete(name)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

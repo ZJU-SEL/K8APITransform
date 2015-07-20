@@ -2,6 +2,9 @@ package models
 
 type Detail struct {
 	Name         string   `json:"name,omitempty"`
+	Cpu          string   `json:"cpu,omitempty"`
+	Memory       string   `json:"memory,omitempty"`
+	Storage      string   `json:"storage,omitempty"`
 	Resource     []Detail `json:"resource,omitempty"`
 	PodName      string   `json:"podName,omitempty"`
 	Status       int      `json:"status,omitempty"`

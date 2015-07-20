@@ -11,7 +11,7 @@ type AppEnv struct {
 	NodeNum string
 	Name    string
 	Cpu     string
-	Memery  string
+	Memory  string
 	Storage string
 	Used    int
 }
@@ -68,6 +68,7 @@ func GetAppEnv(ip string, envname string) (*AppEnv, error) {
 }
 func DeleteAppEnv(ip string, envname string) error {
 	_, err := EtcdClient.Delete("/envs/"+ip+"/"+envname, false)
+	err = IdPools.DeleteIdPool(ip, envname)
 	return err
 
 }

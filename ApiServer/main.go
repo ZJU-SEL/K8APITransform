@@ -47,6 +47,7 @@ func main() {
 		}
 		if flag == 0 {
 			ip := ctx.Request.Header.Get("Authorization")
+			fmt.Println(ip)
 			//_, ok := ctx.Input.Session("user").(string)
 			if ip == "" {
 				http.Error(ctx.ResponseWriter, "Authorization not set", 500)

@@ -12,6 +12,7 @@ var IdPools IdPoolsInterface
 type IdPoolsInterface interface {
 	GetId(ip string, env string) (string, error)
 	CreateIdPool(ip string, env string) error
+	DeleteIdPool(ip string, env string) error
 }
 
 func NewIdPools() IdPoolsInterface {
@@ -27,6 +28,11 @@ type idpools struct {
 
 func (pools *idpools) CreateIdPool(ip string, env string) error {
 	_, err := EtcdClient.Create("/idpools/"+ip+"/"+env, "aaaaaaaaaaaaa", 0)
+	return err
+
+}
+func (pools *idpools) DeleteIdPool(ip string, env string) error {
+	_, err := EtcdClient.Delete("/idpools/"+ip+"/"+env, false)
 	return err
 
 }

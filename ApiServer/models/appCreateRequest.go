@@ -22,7 +22,7 @@ type AppCreateRequest struct {
 	Containername  string
 	Containerimage string
 	Cpu            string
-	Memery         string
+	Memory         string
 	Storage        string
 	Warpath        string
 	ContainerPort  []Containerport
