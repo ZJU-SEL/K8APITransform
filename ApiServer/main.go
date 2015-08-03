@@ -9,9 +9,18 @@ import (
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/context"
 	"github.com/coreos/go-etcd/etcd"
+	"io/ioutil"
+	"log"
 	"net/http"
+	"strings"
 )
 
+func init() {
+	filedata, _ := ioutil.ReadFile("/etc/hosts")
+
+	controllers.Hosts = strings.Split(string(filedata), string(10))
+	log.Println(controllers.Hosts)
+}
 func main() {
 	//beego.SessionOn = true
 	//models.KubernetesIp = beego.AppConfig.String("k8sip")
@@ -19,8 +28,9 @@ func main() {
 	serverCrt := beego.AppConfig.String("serverCrt")
 	serverKey := beego.AppConfig.String("serverKey")
 	rootCrt := beego.AppConfig.String("rootCrt")
-	controllers.DockerBuilddeamon = beego.AppConfig.String("DOCKER_BUILD_DEAMON")
-	models.ApiVersion = beego.AppConfig.String("APIVERSION")
+
+	//controllers.DockerBuilddeamon = beego.AppConfig.String("DOCKER_BUILD_DEAMON")
+	//models.ApiVersion = beego.AppConfig.String("APIVERSION")
 
 	//fmt.Println("k8sip is ", models.KubernetesIp)
 	//controllers.K8sBackend, _ = models.NewBackend(models.KubernetesIp+":8080", models.ApiVersion)
@@ -31,14 +41,14 @@ func main() {
 		fmt.Println(err.Error())
 	}
 	models.EtcdClient = Client
-	models.IdPools = models.NewIdPools()
+	//models.IdPools = models.NewIdPools()
 	//response := models.EtcdClient.CreateDir("/user")
 	var UrlManager = func(ctx *context.Context) {
 		//read urlMapping data from database
 		//urlMapping := model.GetUrlMapping()
 		fmt.Println(ctx.Request.RequestURI)
 		flag := 0
-		for baseurl, _ := range map[string]string{"/v1/application/checkuser": "POST"} {
+		for baseurl, _ := range map[string]string{"/v1/user/checkuser": "POST"} {
 			if baseurl == ctx.Request.RequestURI {
 				flag = 1
 				break

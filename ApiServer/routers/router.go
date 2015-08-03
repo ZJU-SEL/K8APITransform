@@ -26,16 +26,26 @@ func init() {
 				&controllers.EnvController{},
 			),
 		),
+		beego.NSNamespace("/user",
+			beego.NSInclude(
+				&controllers.UserController{},
+			),
+		),
+		beego.NSNamespace("/cluster",
+			beego.NSInclude(
+				&controllers.ClusterController{},
+			),
+		),
 		//beego.NSNamespace("/user",
 		//	beego.NSInclude(
 		//		&controllers.UserController{},
 		//	),
 		//),
-		beego.NSNamespace("/s",
-			beego.NSInclude(
-				&controllers.BaseimageController{},
-			),
-		),
+		//beego.NSNamespace("/s",
+		//	beego.NSInclude(
+		//		&controllers.BaseimageController{},
+		//	),
+		//),
 		//beego.NSPost("/namespaces/:namespace/upload/:appname", controllers.SetUserip),
 		//beego.NSGet("/baseimage/search", controllers.Baseimagelist),
 		//beego.NSGet("/baseimage/pull/:imagename", controllers.Baseimagepull),

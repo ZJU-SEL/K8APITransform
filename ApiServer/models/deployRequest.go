@@ -3,18 +3,18 @@ package models
 type DeployRequest struct {
 	EnvName        string
 	WarName        string
-	AppVersion     string
+	Version        string
 	IsGreyUpdating string
 }
 
 func (key DeployRequest) Validate() error {
 	var validationError ValidationError
 	if key.EnvName == "" {
-		validationError = validationError.Append(ErrInvalidField{"TomcatV"})
+		validationError = validationError.Append(ErrInvalidField{"EnvName"})
 	}
 
 	if key.WarName == "" {
-		validationError = validationError.Append(ErrInvalidField{"JdkV"})
+		validationError = validationError.Append(ErrInvalidField{"WarName"})
 	}
 	/*
 		if len(key.Ports) == 0 {
@@ -22,8 +22,8 @@ func (key DeployRequest) Validate() error {
 		}
 	*/
 
-	if key.AppVersion == "" {
-		validationError = validationError.Append(ErrInvalidField{"Name"})
+	if key.Version == "" {
+		validationError = validationError.Append(ErrInvalidField{"Version"})
 	}
 	if !validationError.Empty() {
 		return validationError

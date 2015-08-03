@@ -1,50 +1,54 @@
 package models
 
 import (
-	//"K8APITransform/ApiServer/models"
-	//"github.com/coreos/go-etcd/etcd"
+	"path"
 	"sync"
+)
+
+const (
+	IdpoolRoot = "/idpools"
 )
 
 var mutex = &sync.Mutex{}
 var IdPools IdPoolsInterface
 
 type IdPoolsInterface interface {
-	GetId(ip string, env string) (string, error)
-	CreateIdPool(ip string, env string) error
-	DeleteIdPool(ip string, env string) error
+	GetId(env string) (string, error)
+	Create(env string) error
+	Delete(env string) error
 }
 
-func NewIdPools() IdPoolsInterface {
-	_, err := EtcdClient.Get("/idpools", false, false)
-	if err != nil {
-		EtcdClient.CreateDir("/idpools", 0)
-	}
-	return &idpools{}
+func newIdPools(C *UserClient, cluster string) IdPoolsInterface {
+	return &idpools{C, cluster}
 }
 
 type idpools struct {
+	c       *UserClient
+	cluster string
 }
 
-func (pools *idpools) CreateIdPool(ip string, env string) error {
-	_, err := EtcdClient.Create("/idpools/"+ip+"/"+env, "aaaaaaaaaaaaa", 0)
+func (pools *idpools) IppoolPath(env string) string {
+	return path.Join(IdpoolRoot, pools.c.UserName, pools.cluster, env)
+}
+func (pools *idpools) Create(env string) error {
+	_, err := EtcdClient.Create(pools.IppoolPath(env), "aaaaaaaaaaaaa", 0)
 	return err
 
 }
-func (pools *idpools) DeleteIdPool(ip string, env string) error {
-	_, err := EtcdClient.Delete("/idpools/"+ip+"/"+env, false)
+func (pools *idpools) Delete(env string) error {
+	_, err := EtcdClient.Delete(pools.IppoolPath(env), false)
 	return err
 
 }
-func (pools *idpools) GetId(ip string, env string) (string, error) {
+func (pools *idpools) GetId(env string) (string, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
-	response, err := EtcdClient.Get("/idpools/"+ip+"/"+env, false, false)
+	response, err := EtcdClient.Get(pools.IppoolPath(env), false, false)
 	if err != nil {
 		return "", err
 	}
 	id := pools.next(response.Node.Value)
-	_, err = EtcdClient.Update("/idpools/"+ip+"/"+env, id, 0)
+	_, err = EtcdClient.Update(pools.IppoolPath(env), id, 0)
 	if err != nil {
 		return "", err
 	}

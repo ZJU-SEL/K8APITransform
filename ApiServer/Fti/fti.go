@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"io"
+	"sync"
 	//	"io/ioutil"
 	"github.com/fsouza/go-dockerclient"
 	"os"
@@ -19,6 +20,8 @@ import (
 const (
 	applications = "applications"
 )
+
+var mutex = &sync.Mutex{}
 
 func Filecompress(tw *tar.Writer, dir string, fi os.FileInfo) error {
 
@@ -231,7 +234,7 @@ func Createdockerfile(username string, baseimage string, newimage string, warNam
 
 //the image will be covered if the image already exist
 //dockerdeamon, username,imageprefix, baseimage, newimage
-func Wartoimage(dockerdeamon string, imageprefix string, username string, baseimage string, newimage string, warName string) (string, error) {
+func Wartoimage(dockerdeamon string, envName string, imageprefix string, username string, baseimage string, newimage string, warName string) (string, error) {
 	// put the war file into the _deploy dir
 
 	sourcedir := applications + "/" + username + "/" + newimage + "_deploy"
@@ -281,7 +284,7 @@ func Wartoimage(dockerdeamon string, imageprefix string, username string, baseim
 	base := imageprefix + `/apm-jre7-tomcat7`
 	opts := docker.BuildImageOptions{
 
-		Name:         base + ":" + newimage,
+		Name:         base + ":" + envName + "-" + newimage,
 		InputStream:  tarStream,
 		OutputStream: os.Stdout,
 		Auth:         auth,
@@ -297,12 +300,13 @@ func Wartoimage(dockerdeamon string, imageprefix string, username string, baseim
 
 	pushopts := docker.PushImageOptions{
 		Name:         base,
-		Tag:          newimage,
+		Tag:          envName + "-" + newimage,
 		Registry:     imageprefix,
 		OutputStream: os.Stdout,
 	}
-
+	mutex.Lock()
 	err = client.PushImage(pushopts, auth)
+	mutex.Unlock()
 	if err != nil {
 		return "", err
 
@@ -310,7 +314,7 @@ func Wartoimage(dockerdeamon string, imageprefix string, username string, baseim
 	//send the image to the private registry
 	//pushcommand := `docker push ` + imageprefix + "/" + strings.ToLower(newimage)
 	//Systemexec(pushcommand)
-	return base + ":" + newimage, nil
+	return base + ":" + envName + "-" + newimage, nil
 }
 
 // 检查文件或目录是否存在
