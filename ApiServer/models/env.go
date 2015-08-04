@@ -1,16 +1,29 @@
 package models
 
 import (
+	//"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/client"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/labels"
+	"github.com/GoogleCloudPlatform/kubernetes/pkg/serviceaccount"
 	"github.com/coreos/go-etcd/etcd"
+	"github.com/dgrijalva/jwt-go"
 	"log"
 	"path"
 	"sort"
 	"strconv"
 	"strings"
+)
+
+const (
+	Issuer                  = "kubernetes/serviceaccount"
+	SubjectClaim            = "sub"
+	IssuerClaim             = "iss"
+	ServiceAccountNameClaim = "kubernetes.io/serviceaccount/service-account.name"
+	ServiceAccountUIDClaim  = "kubernetes.io/serviceaccount/service-account.uid"
+	SecretNameClaim         = "kubernetes.io/serviceaccount/secret.name"
+	NamespaceClaim          = "kubernetes.io/serviceaccount/namespace"
 )
 
 type Env struct {
@@ -86,17 +99,44 @@ func (e *Envs) NewClient() (*client.Client, error) {
 	if client, exist := K8ClientMap[e.Cluster+"."+e.C.UserName]; exist {
 		return client, nil
 	}
+	token := jwt.New(jwt.SigningMethodRS256)
+	// Set some claims
+	token.Claims[SubjectClaim] = "zjusel"
+	token.Claims[IssuerClaim] = Issuer
+	token.Claims[ServiceAccountNameClaim] = "zjusel"
+	token.Claims[ServiceAccountUIDClaim] = "123456789sel"
+	token.Claims[SecretNameClaim] = "zjusel"
+	token.Claims[NamespaceClaim] = "zjusel"
+
+	// Sign and get the complete encoded token as a string
+
+	//publicKey, err := serviceaccount.ReadPublicKey("ca.key")
+
+	privateKey, err := serviceaccount.ReadPrivateKey("certs/sa.key")
+	//fmt.Println(privateKey)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, err
+	}
+	tokenString, err := token.SignedString(privateKey)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, err
+	}
+
+	//fmt.Println(tokenString)
 	config := &client.Config{
-		Host:    "https://" + e.Cluster + "." + e.C.UserName + PORT,
-		Version: ApiVersion,
-		TLSClientConfig: client.TLSClientConfig{
-			// Server requires TLS client certificate authentication
-			//CertFile: certDir + "/server.crt",
-			// Server requires TLS client certificate authentication
-			//KeyFile: certDir + "/server.key",
-			// Trusted root certificates for server
-			CAFile: path.Join(CertRoot, e.C.UserName, e.Cluster, "ca.crt"),
-		},
+		Host:     "https://" + e.Cluster + "." + e.C.UserName + PORT,
+		Version:  ApiVersion,
+		Insecure: true,
+		//TLSClientConfig: client.TLSClientConfig{
+		//	// Server requires TLS client certificate authentication
+		//	//CertFile: certDir + "/server.crt",
+		//	// Server requires TLS client certificate authentication
+		//	//KeyFile: certDir + "/server.key",
+		//	// Trusted root certificates for server
+		//	CAFile: path.Join(CertRoot, e.C.UserName, e.Cluster, "ca.crt"),
+		//},
 		BearerToken: "abcdTOKEN1234",
 	}
 
@@ -566,7 +606,7 @@ func (e *Envs) ListInfo2() ([]map[string]string, error) {
 			env["newAddress"] = ""
 		} else {
 			env["instance"] = fmt.Sprintf("%d", envstatus[k]["replicas"])
-			if exist && envstatus[k]["replicas"] == envstatus[k]["stopped"] {
+			if exist && envstatus[k]["replicas"] == envstatus[k]["stopped"] && envstatus[k]["stopped"] != 0 {
 				env["status"] = "Stopped"
 
 			} else {

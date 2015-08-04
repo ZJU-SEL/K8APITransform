@@ -10,10 +10,10 @@ type Detail struct {
 	Cpu          string          `json:"cpu,omitempty"`
 	Memory       string          `json:"memory,omitempty"`
 	Disk         string          `json:"disk,omitempty"`
-	InstanceInfo []*InstanceInfo `json:"instanceInfo,omitempty"`
+	InstanceInfo []*InstanceInfo `json:"instanceInfo"`
 	Resource     []Detail        `json:"resource,omitempty"`
 	PodName      string          `json:"podName,omitempty"`
-	Instance     int             `json:"instance,omitempty"`
+	Instance     int             `json:"instance"`
 	Status       string          `json:"status,omitempty"`
 	NodeType     int             `json:"nodeType,omitempty"`
 	AppVersion   string          `json:"appVersion,omitempty"`

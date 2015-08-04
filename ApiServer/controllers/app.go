@@ -77,6 +77,7 @@ type AppController struct {
 func (a *AppController) ListInfo2() {
 	username := a.Ctx.Request.Header.Get("Authorization")
 	cluster := a.GetString("target")
+	//flag:=0
 	if cluster == "" {
 		response, err := models.EtcdClient.Get(path.Join(models.IpRoot, username), false, true)
 		if err != nil {
@@ -93,10 +94,12 @@ func (a *AppController) ListInfo2() {
 			c := make(chan int)
 			channel = append(channel, c)
 			go func(v *etcd.Node, c chan int) {
+				defer close(c)
 				cluster = path.Base(v.Key)
 				log.Println("Cluster :", cluster)
 				envlist, err := models.NewUserClient(username).Envs(cluster).ListInfo2()
 				if err != nil {
+					//flag++
 					log.Printf("List User %v Cluster %v Error :%v\n", username, cluster, err.Error())
 					a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 					http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
@@ -105,7 +108,6 @@ func (a *AppController) ListInfo2() {
 				mutex.Lock()
 				result = append(result, envlist...)
 				mutex.Unlock()
-				close(c)
 			}(v, c)
 			//models.NewUserClient(username).Envs(cluster).ListInfo()
 		}
@@ -468,6 +470,47 @@ func (a *AppController) Restart() {
 		return
 	}
 	err = models.NewUserClient(username).Envs(cluster).Apps(input["envName"]).Restart(input["appName"])
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	a.Data["json"] = map[string]string{"msg": "SUCCESS"}
+	a.ServeJson()
+}
+
+// @Title close Debug
+// @Description close DebugApp
+
+// @router /closedebugApp [post]
+func (a *AppController) CloseDebugApp() {
+	ip := a.Ctx.Request.Header.Get("Authorization")
+	username, cluster, err := models.Ip2UC(ip)
+	if err != nil {
+		log.Printf("Get User name and cluster by ip  %v Error :%v\n", ip, err.Error())
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	//namespace := "default"
+	req := map[string]string{}
+	err = json.Unmarshal(a.Ctx.Input.RequestBody, &req)
+	//log.Println(deployReq)
+	if err != nil {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
+		return
+	}
+	log.Println(req["appName"])
+	if _, exist := req["appName"]; exist == false {
+		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
+		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+"request not has appName "+`"}`, 406)
+		return
+	}
+	//appName := req["appName"]
+	//appName := app.Name + "-" + app.Version
+	//err = K8sBackend.Applications(req["envName"]).CloseDebug(req["appName"])
+	err = models.NewUserClient(username).Envs(cluster).Apps(req["envName"]).CloseDebug(req["appName"])
 	if err != nil {
 		a.Ctx.ResponseWriter.Header().Set("Content-Type", "application/json")
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)

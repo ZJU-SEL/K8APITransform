@@ -61,6 +61,9 @@ func (a *UserController) Checkuser() {
 		http.Error(a.Ctx.ResponseWriter, `{"errorMessage":"`+err.Error()+`"}`, 406)
 		return
 	}
+	if _, exist := models.K8ClientMap[cluster+"."+username]; exist {
+		delete(models.K8ClientMap, cluster+"."+username)
+	}
 	models.EtcdClient.Set(path.Join(models.HostRoot, masterip), cluster+"."+username, 0)
 	models.EtcdClient.Set(path.Join("hosttoip", username, cluster), masterip, 0)
 	models.EtcdClient.SetDir(path.Join(models.EnvRoot, username, cluster), 0)

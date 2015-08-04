@@ -85,6 +85,13 @@ func init() {
 
 	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppController"],
 		beego.ControllerComments{
+			"CloseDebugApp",
+			`/closedebugApp`,
+			[]string{"post"},
+			nil})
+
+	beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppController"] = append(beego.GlobalControllerRouter["K8APITransform/ApiServer/controllers:AppController"],
+		beego.ControllerComments{
 			"Debug",
 			`/debug`,
 			[]string{"post"},

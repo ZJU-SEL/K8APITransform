@@ -35,6 +35,7 @@ type AppsInterface interface {
 	Monit(name string, id string, flag string) (map[string]interface{}, error)
 	Rmi(imagename string) error
 	Debug(name string) error
+	CloseDebug(name string) error
 }
 type Services struct {
 	api.ServiceList
@@ -336,6 +337,9 @@ func (a *apps) Scale(name string, replicas int) error {
 		return ErrResponse{fmt.Sprintf("a app with %d services", len(rclist.Items))}
 	}
 	rc := rclist.Items[0]
+	if _, exist := rc.ObjectMeta.Labels["stopped"]; exist {
+		return fmt.Errorf("app %s is stopped", name)
+	}
 	rc.Spec.Replicas = replicas
 	_, err = a.b.ReplicationControllers("default").Update(&rc)
 	if err != nil {
@@ -447,22 +451,12 @@ func (a *apps) Start(name string) error {
 	return nil
 }
 func (a *apps) Restart(name string) error {
-	rclist, err := a.b.ReplicationControllers("default").List(labels.SelectorFromSet(map[string]string{"env": a.env, "name": name}))
+	err := a.Stop(name)
 	if err != nil {
 		return err
 	}
-	if len(rclist.Items) != 1 {
-		return ErrResponse{fmt.Sprintf("a app with %d services", len(rclist.Items))}
-	}
-	rc := rclist.Items[0]
-	replicas := rc.Spec.Replicas
-	rc.Spec.Replicas = 0
-	rcnew, err := a.b.ReplicationControllers("default").Update(&rc)
-	if err != nil {
-		return err
-	}
-	rcnew.Spec.Replicas = replicas
-	_, err = a.b.ReplicationControllers("default").Update(rcnew)
+	time.Sleep(1 * time.Second)
+	err = a.Start(name)
 	if err != nil {
 		return err
 	}
@@ -526,6 +520,7 @@ func (a *apps) DeleteAll() error {
 	if err != nil {
 		return err
 	}
+
 	for _, v := range sevicelist.Items {
 		log.Println("Delete App :", v.ObjectMeta.Labels["name"])
 		name := v.ObjectMeta.Labels["name"]
@@ -616,9 +611,51 @@ func (a *apps) Debug(name string) error {
 		fmt.Println(1)
 		return err
 	}
+	time.Sleep(time.Second)
 	//rcnew := rclist.Items[0]
 	rcnew.Spec.Template.Spec.Containers[0].Env = append(rc.Spec.Template.Spec.Containers[0].Env, api.EnvVar{"apm_debug", "true", nil})
 	rcnew.Spec.Template.Spec.Containers[1].Env = append(rc.Spec.Template.Spec.Containers[1].Env, api.EnvVar{"apm_debug", "true", nil})
+	rcnew.Spec.Replicas = replicas
+	_, err = a.b.ReplicationControllers("default").Update(rcnew)
+	if err != nil {
+		fmt.Println("afasdfasdfasdf3")
+		return err
+	}
+	return nil
+}
+func (a *apps) CloseDebug(name string) error {
+	rclist, err := a.b.ReplicationControllers("default").List(labels.SelectorFromSet(map[string]string{"name": name}))
+	if err != nil {
+		return err
+	}
+
+	if len(rclist.Items) != 1 {
+		return ErrResponse{fmt.Sprintf("a app with %d services", len(rclist.Items))}
+	}
+	rc := rclist.Items[0]
+	replicas := rc.Spec.Replicas
+	rc.Spec.Replicas = 0
+	rcnew, err := a.b.ReplicationControllers("default").Update(&rc)
+	if err != nil {
+		fmt.Println(1)
+		return err
+	}
+
+	//rcnew := rclist.Items[0]
+	envs := []api.EnvVar{}
+	for _, v := range rcnew.Spec.Template.Spec.Containers[0].Env {
+		if v.Name != "apm_debug" {
+			envs = append(envs, v)
+		}
+	}
+	rcnew.Spec.Template.Spec.Containers[0].Env = envs
+	envs = []api.EnvVar{}
+	for _, v := range rcnew.Spec.Template.Spec.Containers[1].Env {
+		if v.Name != "apm_debug" {
+			envs = append(envs, v)
+		}
+	}
+	rcnew.Spec.Template.Spec.Containers[1].Env = envs
 	rcnew.Spec.Replicas = replicas
 	_, err = a.b.ReplicationControllers("default").Update(rcnew)
 	if err != nil {
